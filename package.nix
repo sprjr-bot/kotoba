@@ -26,9 +26,9 @@ python3Packages.buildPythonApplication {
 
   nativeBuildInputs = [ python3Packages.pytestCheckHook ];
 
-  makeWrapperArgs = lib.singleton (
-    "--suffix PATH : " + lib.makeBinPath [ wordnet wl-clipboard ]
-  );
+  makeWrapperArgs = [
+    "--suffix" "PATH" ":" (lib.makeBinPath [ wordnet wl-clipboard ])
+  ];
 
   meta = {
     description = "Dictionary pager TUI for Jisho and WordNet";

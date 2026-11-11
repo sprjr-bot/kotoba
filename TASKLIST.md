@@ -48,6 +48,44 @@ The TUI was driven headlessly with Textual's `run_test()` pilot: initial query s
 submit → results, `esc` → query with text preserved, second submit, `q` exits. Screenshots
 rendered from `App.export_screenshot()` SVG.
 
+## Closure size
+
+Runtime closure contributors and whether the code actually needs them:
+- `python3` + stdlib: required (interpreter).
+- `httpx` tree (`httpcore`, `h11`, `anyio`, `sniffio`, `certifi`, `idna`): required
+  by `jisho.py`; all are pulled in by declared `httpx` dependency.
+- `textual` tree (`rich`, `pygments`, `markdown-it-py`, `typing-extensions`,
+  `platformdirs`, etc.): required only when TUI path is taken. `--print`/`--json`
+  never imports it. Declared dependency, so always in closure.
+- `wordnet` (binary + WordNet 3.0 DB files): required only for the English path
+  (`wordnet.py` shells out to `wn`). ~30–40 MB estimated, mostly the database.
+- `wl-clipboard` (`wl-copy`/`wl-paste`): required only for clipboard read/write,
+  gated by `shutil.which` at runtime. Linux Wayland only; dead weight on X11 or
+  headless servers.
+- `xdg-open`: not bundled; `app.py` calls it if available, otherwise silently fails.
+
+No measured Nix closure size is available (no Nix in this container). Measure on a
+host with Nix:
+
+```bash
+nix path-info -rSsh $(nix build --no-link --print-out-paths .#default) | sort -k2 -h | tail -20
+```
+
+Likely top entries: `wordnet` data files, `python3`, `textual` + `rich`/`pygments`,
+`httpx` + `httpcore` + `certifi` CA bundle.
+
+Options to make it lighter:
+1. **Drop `wordnet` from default dependency; make `kotoba-en` a separate output/package.**
+   Trade-off: users who only look up Japanese lose ~30–40 MB. Effort: low.
+2. **Replace Textual with a minimal curses/urwid renderer.** Trade-off: removes
+   `textual`/`rich`/`pygments` (~10–20 MB estimated) but costs UX and keybinding work.
+   Effort: medium.
+3. **Lazily fetch WordNet data instead of bundling it.** Trade-off: first `en` query
+   downloads data; offline path lost. Effort: high (needs own `wn` data store).
+
+Recommended: option 1 (split package) for the biggest verified saving with the least
+work.
+
 ## Unverified (needs a host with Nix)
 
 - `nix build` of the package and `nix build .#container`
