@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import tempfile
 from datetime import datetime, timezone
@@ -13,10 +14,6 @@ _FILE_VERSION = 1
 
 
 class ListsError(Exception):
-    pass
-
-
-class _SerializableEntry(Entry):
     pass
 
 
@@ -44,18 +41,18 @@ def _entry_to_dict(entry: Entry) -> dict:
     return {
         "headword": entry.headword,
         "reading": entry.reading or "",
-        "source": getattr(entry, "source", None) or "",
+        "source": entry.source or "",
         "senses": [
             {"pos": list(sense.pos), "glosses": list(sense.glosses)}
             for sense in entry.senses
         ],
         "tags": list(entry.tags),
-        "url": getattr(entry, "url", None) or "",
+        "url": entry.url or "",
         "added": getattr(entry, "added", None) or _now(),
     }
 
 
-def _entry_from_dict(data: dict) -> Entry:
+def entry_from_dict(data: dict) -> Entry:
     return Entry(
         headword=data.get("headword", ""),
         reading=data.get("reading") or None,
@@ -67,6 +64,8 @@ def _entry_from_dict(data: dict) -> Entry:
             for s in data.get("senses", [])
         ),
         tags=tuple(data.get("tags", [])),
+        url=data.get("url", ""),
+        source=data.get("source", ""),
     )
 
 
@@ -130,7 +129,7 @@ def _key(entry: Entry) -> tuple[str, str]:
 def add_entry(list_name: str, entry: Entry, *, state: dict | None = None) -> tuple[dict, bool]:
     data = load() if state is None else state
     _touch_list(data, list_name)
-    existing = {_key(_entry_from_dict(e)) for e in data["lists"][list_name]["entries"]}
+    existing = {_key(entry_from_dict(e)) for e in data["lists"][list_name]["entries"]}
     if _key(entry) in existing:
         return data, False
     data["lists"][list_name]["entries"].append(_entry_to_dict(entry))
@@ -142,12 +141,18 @@ def remove_entry(list_name: str, headword: str, reading: str | None = None, *, s
     data = load() if state is None else state
     if list_name not in data["lists"]:
         return data, False
-    target = (headword, reading or "")
     before = len(data["lists"][list_name]["entries"])
-    data["lists"][list_name]["entries"] = [
-        e for e in data["lists"][list_name]["entries"]
-        if (e.get("headword", ""), e.get("reading", "")) != target
-    ]
+    if reading is None:
+        data["lists"][list_name]["entries"] = [
+            e for e in data["lists"][list_name]["entries"]
+            if e.get("headword", "") != headword
+        ]
+    else:
+        target = (headword, reading)
+        data["lists"][list_name]["entries"] = [
+            e for e in data["lists"][list_name]["entries"]
+            if (e.get("headword", ""), e.get("reading", "")) != target
+        ]
     removed = len(data["lists"][list_name]["entries"]) < before
     return data, removed
 

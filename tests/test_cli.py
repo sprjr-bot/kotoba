@@ -238,15 +238,15 @@ def test_list_add_upstream_error(monkeypatch, tmp_path):
     assert main(["list", "add", "猫", "--source", "jp"]) == EXIT_UPSTREAM_ERROR
 
 
-def test_list_rm(monkeypatch, tmp_path):
+def test_list_rm_without_reading(monkeypatch, tmp_path):
     from kotoba.lists import add_entry, save
     from kotoba.model import Entry, Sense
 
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     state, _ = add_entry("default", Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)))
     save(state)
-    assert main(["list", "rm", "猫", "--reading", "ねこ"]) == EXIT_OK
-    assert main(["list", "rm", "猫", "--reading", "ねこ"]) == EXIT_NO_RESULTS
+    assert main(["list", "rm", "猫"]) == EXIT_OK
+    assert main(["list", "rm", "猫"]) == EXIT_NO_RESULTS
 
 
 def test_list_show(monkeypatch, tmp_path):

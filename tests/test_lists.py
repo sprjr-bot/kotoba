@@ -12,6 +12,7 @@ from kotoba.lists import (
     ListsError,
     add_entry,
     delete_list,
+    entry_from_dict,
     get_list,
     last_list,
     list_names,
@@ -61,11 +62,80 @@ def test_dedupe_per_list(lists_dir):
     assert len(get_list("default", state=state)["entries"]) == 1
 
 
-def test_remove_entry(lists_dir):
-    state, _ = add_entry("default", _entry("猫", "ねこ"))
-    state, removed = remove_entry("default", "猫", "ねこ", state=state)
+def test_entry_meta_round_trip(lists_dir):
+    entry = Entry(
+        headword="猫",
+        reading="ねこ",
+        senses=(Sense(pos=("Noun",), glosses=("cat",)),),
+        tags=("common",),
+        url="https://jisho.org/search/%E7%8C%AB",
+        source="jisho",
+    )
+    state, _ = add_entry("default", entry)
+    save(state)
+    loaded = get_list("default", state=load())["entries"][0]
+    assert loaded["url"] == entry.url
+    assert loaded["source"] == entry.source
+    restored = entry_from_dict(loaded)
+    assert restored.url == entry.url
+    assert restored.source == entry.source
+
+
+def test_remove_entry_without_reading(lists_dir):
+    state, _ = add_entry("default", Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)))
+    state, removed = remove_entry("default", "猫", state=state)
     assert removed
     assert len(get_list("default", state=state)["entries"]) == 0
+
+
+def test_remove_without_reading_removes_all_same_headword(lists_dir):
+    state, _ = add_entry(
+        "default",
+        Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)),
+    )
+    state, _ = add_entry(
+        "default",
+        Entry(headword="猫", reading="ネコ", senses=(Sense(pos=("Noun",), glosses=("feline",)),)),
+        state=state,
+    )
+    state, removed = remove_entry("default", "猫", state=state)
+    assert removed
+    assert len(get_list("default", state=state)["entries"]) == 0
+
+
+def test_remove_with_reading_only_targets_match(lists_dir):
+    state, _ = add_entry(
+        "default",
+        Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)),
+    )
+    state, _ = add_entry(
+        "default",
+        Entry(headword="猫", reading="ネコ", senses=(Sense(pos=("Noun",), glosses=("feline",)),)),
+        state=state,
+    )
+    state, removed = remove_entry("default", "猫", "ねこ", state=state)
+    assert removed
+    get_entry_with_reading = lambda data, r: [e for e in data["entries"] if e["reading"] == r]
+    remaining = get_entry_with_reading(get_list("default", state=state), "ネコ")
+    assert len(remaining) == 1
+
+
+def test_add_entry_round_trip_keeps_meta(lists_dir):
+    from kotoba.lists import _entry_to_dict
+
+    entry = Entry(
+        headword="love",
+        reading=None,
+        senses=(Sense(pos=("Noun",), glosses=("a strong positive emotion",)),),
+        url="https://wordnet",
+        source="wordnet",
+    )
+    assert _entry_to_dict(entry)["source"] == "wordnet"
+    state, _ = add_entry("default", entry)
+    save(state)
+    loaded = get_list("default", state=load())["entries"][0]
+    assert loaded["source"] == "wordnet"
+    assert loaded["url"] == "https://wordnet"
 
 
 def test_delete_list(lists_dir):

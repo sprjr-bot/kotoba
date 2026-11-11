@@ -12,7 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Input, Static
 
 from kotoba.export import export_list
-from kotoba.lists import add_entry, delete_list, get_list, last_list, list_names, load, remove_entry, save
+from kotoba.lists import add_entry, delete_list, entry_from_dict, get_list, last_list, list_names, load, remove_entry, save
 from kotoba.model import Entry, LookupResult
 from kotoba.render import render_error, render_text
 
@@ -499,11 +499,10 @@ class ExportScreen(Screen):
     def action_confirm(self) -> None:
         fmt = self._options[self._index]
         try:
-            from kotoba.lists import _entry_from_dict
             data = get_list(self.list_name)
             if data is None:
                 raise ValueError(f"list {self.list_name} not found")
-            entries = [_entry_from_dict(item) for item in data.get("entries", [])]
+            entries = [entry_from_dict(item) for item in data.get("entries", [])]
             output_dir = None
             paths = export_list(entries, self.list_name, fmt, output_dir=output_dir)
             self.app.notify("\n".join(str(p) for p in paths))

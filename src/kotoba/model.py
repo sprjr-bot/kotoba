@@ -16,6 +16,8 @@ class Entry:
     reading: str | None
     senses: tuple[Sense, ...]
     tags: tuple[str, ...] = ()
+    url: str = ""
+    source: str = ""
 
 
 @dataclass(frozen=True)

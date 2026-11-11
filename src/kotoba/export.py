@@ -3,6 +3,8 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
+import sqlite3
 import stat
 import tempfile
 import zipfile
@@ -73,8 +75,6 @@ def _tags(entry: _ExportEntry, list_name: str) -> list[str]:
 
 @dataclass(frozen=True)
 class _ExportEntry(Entry):
-    source: str = ""
-    url: str = ""
     added: str = ""
 
 
@@ -84,8 +84,8 @@ def _wrap(entry: Entry, *, source: str = "", url: str = "", added: str = "") -> 
         reading=entry.reading,
         senses=entry.senses,
         tags=entry.tags,
-        source=source,
-        url=url,
+        url=url or entry.url,
+        source=source or entry.source,
         added=added,
     )
 
@@ -137,8 +137,21 @@ def _model_en() -> "genanki.Model":
     )
 
 
+def _pick_model(entry: _ExportEntry, model_jp: "genanki.Model", model_en: "genanki.Model"):
+    if entry.source == "wordnet":
+        return model_en
+    if entry.source:
+        return model_jp
+    if entry.reading is None or entry.reading == entry.headword:
+        return model_en
+    return model_jp
+
+
 def _apkg(entries: list[_ExportEntry], list_name: str, path: Path) -> Path:
-    import genanki
+    try:
+        import genanki
+    except Exception as exc:
+        raise ImportError("genanki is not installed; install it to export .apkg") from exc
 
     deck_id = _stable_id(f"kotoba-deck-{list_name}")
     deck = genanki.Deck(deck_id=deck_id, name=f"kotoba::{list_name}")
@@ -147,12 +160,11 @@ def _apkg(entries: list[_ExportEntry], list_name: str, path: Path) -> Path:
 
     for entry in entries:
         tags = _tags(entry, list_name)
-        reading = entry.reading or ""
-        if entry.reading is None or entry.reading == entry.headword:
-            model = model_en
+        model = _pick_model(entry, model_jp, model_en)
+        if model is model_en:
             fields = [entry.headword, _glosses_html(entry), entry.url]
         else:
-            model = model_jp
+            reading = entry.reading or ""
             fields = [entry.headword, reading, _senses_html(entry), entry.url]
         deck.add_note(genanki.Note(model=model, fields=fields, tags=tags))
 
@@ -171,13 +183,26 @@ def _tsv(entries: list[_ExportEntry], list_name: str, path: Path) -> Path:
     for entry in entries:
         front = _tsv_text(entry.headword)
         reading = _tsv_text(entry.reading or "")
-        back = _tsv_text(_senses_html(entry) if entry.reading else _glosses_html(entry))
+        is_en = entry.source == "wordnet" or (not entry.source and not entry.reading)
+        back = _tsv_text(_glosses_html(entry) if is_en else _senses_html(entry))
         tags = " ".join(_tags(entry, list_name))
         lines.append("\t".join([front, back, reading, tags]))
 
     _ensure_dir(path.parent)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+_SANITISE_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _safe_filename(name: str) -> str:
+    safe = _SANITISE_RE.sub("-", name)
+    safe = re.sub(r"-+", "-", safe)
+    safe = re.sub(r"^\.+|\.+$", "", safe)
+    safe = re.sub(r"\.", "-", safe)
+    safe = safe.strip("-")
+    return safe or "list"
 
 
 def export_list(
@@ -196,14 +221,15 @@ def export_list(
     wrapped = [_wrap(e, source=source, url=url, added=added) for e in entries]
     out = output_dir or _exports_dir()
     date = _today()
+    safe_name = _safe_filename(list_name)
     written: list[Path] = []
 
     if fmt in ("apkg", "both"):
-        apkg_path = out / f"kotoba-{list_name}-{date}.apkg"
+        apkg_path = out / f"kotoba-{safe_name}-{date}.apkg"
         written.append(_apkg(wrapped, list_name, apkg_path))
 
     if fmt in ("tsv", "both"):
-        tsv_path = out / f"kotoba-{list_name}-{date}.tsv"
+        tsv_path = out / f"kotoba-{safe_name}-{date}.tsv"
         written.append(_tsv(wrapped, list_name, tsv_path))
 
     return written
@@ -215,11 +241,9 @@ def verify_apkg(path: Path) -> dict:
             raise ValueError("missing collection.anki2")
         db_bytes = zf.read("collection.anki2")
 
-    tmp = Path(tempfile.mktemp(suffix=".anki2"))
+    tmp = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".anki2").name)
     tmp.write_bytes(db_bytes)
     try:
-        import sqlite3
-
         con = sqlite3.connect(str(tmp))
         models = json.loads(con.execute("select models from col").fetchone()[0])
         decks = json.loads(con.execute("select decks from col").fetchone()[0])
@@ -235,13 +259,3 @@ def verify_apkg(path: Path) -> dict:
         }
     finally:
         tmp.unlink(missing_ok=True)
-
-
-try:
-    import genanki  # noqa: F401
-except Exception as exc:
-
-    def _apkg(*args, **kwargs):
-        raise ImportError("genanki is not installed; install it to export .apkg") from exc
-
-    export_list  # silence unused

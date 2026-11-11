@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import tempfile
 import zipfile
 from pathlib import Path
 from unittest import mock
@@ -109,9 +110,105 @@ def test_both_writes_apkg_and_tsv(exports_dir):
     assert sorted(p.suffix for p in paths) == [".apkg", ".tsv"]
 
 
-def test_missing_genanki_raises_clear_error(exports_dir):
-    with mock.patch.dict("sys.modules", {"genanki": None}):
-        from kotoba import export as export_mod
+def test_apkg_mixed_list_emits_both_models(exports_dir):
+    jp = Entry(
+        headword="猫",
+        reading="ねこ",
+        senses=(Sense(pos=("Noun",), glosses=("cat",)),),
+        tags=("common",),
+        source="jisho",
+        url="https://jisho",
+    )
+    en = Entry(
+        headword="love",
+        reading=None,
+        senses=(Sense(pos=("Noun",), glosses=("a strong positive emotion",)),),
+        tags=(),
+        source="wordnet",
+        url="https://wordnet",
+    )
+    paths = export_list([jp, en], "mixed", "apkg")
+    info = verify_apkg(paths[0])
+    assert info["notes"] == 2
+    with zipfile.ZipFile(paths[0]) as zf:
+        db_bytes = zf.read("collection.anki2")
+    tmp = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".anki2").name)
+    tmp.write_bytes(db_bytes)
+    try:
+        import sqlite3
 
-        with pytest.raises(ImportError, match="genanki"):
-            export_mod._apkg([_entry()], "default", exports_dir / "x.apkg")
+        con = sqlite3.connect(str(tmp))
+        model_rows = con.execute("select mid, flds from notes").fetchall()
+        con.close()
+    finally:
+        tmp.unlink(missing_ok=True)
+    field_counts = sorted(len(fields.split("\x1f")) for _, fields in model_rows)
+    assert field_counts == [3, 4]
+
+
+def test_apkg_jisho_missing_reading_uses_jp_model(exports_dir):
+    entry = Entry(
+        headword="猫",
+        reading=None,
+        senses=(Sense(pos=("Noun",), glosses=("cat",)),),
+        source="jisho",
+        url="https://jisho",
+    )
+    paths = export_list([entry], "default", "apkg")
+    info = verify_apkg(paths[0])
+    assert info["notes"] == 1
+    with zipfile.ZipFile(paths[0]) as zf:
+        db_bytes = zf.read("collection.anki2")
+    tmp = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".anki2").name)
+    tmp.write_bytes(db_bytes)
+    try:
+        import sqlite3
+
+        con = sqlite3.connect(str(tmp))
+        _, fields = con.execute("select mid, flds from notes").fetchone()
+        con.close()
+    finally:
+        tmp.unlink(missing_ok=True)
+    assert len(fields.split("\x1f")) == 4
+
+
+def test_tsv_uses_source_to_pick_back_field(exports_dir):
+    jp = Entry(
+        headword="猫",
+        reading="ねこ",
+        senses=(Sense(pos=("Noun",), glosses=("cat",)),),
+        source="jisho",
+    )
+    en = Entry(
+        headword="love",
+        reading=None,
+        senses=(Sense(pos=("Noun",), glosses=("a strong positive emotion",)),),
+        source="wordnet",
+    )
+    paths = export_list([jp, en], "mixed", "tsv")
+    lines = paths[0].read_text(encoding="utf-8").splitlines()
+    jp_line = lines[3].split("\t")
+    en_line = lines[4].split("\t")
+    assert "Noun" in jp_line[1]
+    assert "cat" in jp_line[1]
+    assert "a strong positive emotion" in en_line[1]
+
+
+def test_filename_sanitises_list_name(exports_dir):
+    paths = export_list(
+        [Entry(headword="x", reading="y", senses=(Sense(pos=("Noun",), glosses=("z",)),))],
+        "../../escape",
+        "tsv",
+    )
+    assert len(paths) == 1
+    assert paths[0].parent == exports_dir
+    assert paths[0].name.startswith("kotoba-escape-")
+
+
+def test_filename_falls_back_to_list(exports_dir):
+    paths = export_list(
+        [Entry(headword="x", reading="y", senses=(Sense(pos=("Noun",), glosses=("z",)),))],
+        "../../",
+        "tsv",
+    )
+    assert paths[0].name.startswith("kotoba-list-")

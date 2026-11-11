@@ -10,6 +10,7 @@ from kotoba.lists import (
     ListsError,
     add_entry,
     delete_list,
+    entry_from_dict,
     get_list,
     last_list,
     list_names,
@@ -140,9 +141,9 @@ def _print_result(source: Source, query: str, limit: int | None, as_json: bool) 
 
 
 def _entry_with_meta(entry: Entry, result: LookupResult) -> Entry:
-    object.__setattr__(entry, "url", result.url or "")
-    object.__setattr__(entry, "source", result.source)
-    return entry
+    from dataclasses import replace
+
+    return replace(entry, url=result.url or "", source=result.source)
 
 
 def _cmd_list_add(args) -> int:
@@ -256,9 +257,9 @@ def _cmd_list_export(args) -> int:
         sys.stderr.write(f"kotoba: list '{args.list}' not found\n")
         return EXIT_NO_RESULTS
 
-    from kotoba.lists import _entry_from_dict
+    from kotoba.lists import entry_from_dict
 
-    entries = [_entry_from_dict(item) for item in data["entries"]]
+    entries = [entry_from_dict(item) for item in data["entries"]]
     output_dir = Path(args.output) if args.output else None
     try:
         paths = export_list(entries, args.list, args.format, output_dir=output_dir)
