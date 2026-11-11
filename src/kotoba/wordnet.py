@@ -10,7 +10,7 @@ class LookupError(Exception):
     pass
 
 
-def fetch(query: str) -> LookupResult:
+def fetch(query: str, *, limit: int | None = None) -> LookupResult:
     if not shutil.which("wn"):
         raise LookupError("wordnet not installed")
 
@@ -28,7 +28,10 @@ def fetch(query: str) -> LookupResult:
     if not combined.strip():
         return LookupResult(query=query, source="wordnet", entries=())
 
-    return _parse(query, combined)
+    result = _parse(query, combined)
+    if limit:
+        return LookupResult(query=query, source="wordnet", entries=result.entries[:limit], url=result.url)
+    return result
 
 
 def _parse(query: str, text: str) -> LookupResult:

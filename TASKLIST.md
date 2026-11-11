@@ -31,10 +31,21 @@ survived intact and history was rebuilt as a single commit on `feat/kotoba`.
 - removed `tests/default.nix`: referenced undefined `pkgs.kotoba`, wired into no check
 - `pyproject.toml`: registered the `network` marker
 
+## CLI ergonomics (post-review)
+
+- Bare query: `kotoba 猫` / `kotoba love` infers the source from the script.
+- `-p/--print`, `--json`, `--limit N` for one-off lookups.
+- Pager wraps long senses with a hanging indent instead of wrapping to column 0.
+
 ## Verification
 
-`./.venv/bin/pytest -q` → 29 passed, 1 skipped (live network test), 1 xfailed
-(WordNet fixture). `kotoba jp --print 猫` returns live Jisho entries, exit 0.
+`./.venv/bin/pytest -q` → 37 passed, 1 skipped (live network test), 1 xfailed
+(WordNet fixture). Live checks: `kotoba 猫 -p` (exit 0), `kotoba 猫 --json --limit 2`,
+`kotoba love -p` (exit 2, `wn` absent here), `kotoba jp --print` (exit 64).
+
+The TUI was driven headlessly with Textual's `run_test()` pilot: initial query screen,
+submit → results, `esc` → query with text preserved, second submit, `q` exits. Screenshots
+rendered from `App.export_screenshot()` SVG.
 
 ## Unverified (needs a host with Nix)
 

@@ -11,7 +11,7 @@ class LookupError(Exception):
     pass
 
 
-def fetch(query: str, *, timeout: float = 8.0) -> LookupResult:
+def fetch(query: str, *, timeout: float = 8.0, limit: int = 12) -> LookupResult:
     url = f"https://jisho.org/api/v1/search/words?keyword={quote(query, safe='')}"
     try:
         response = httpx.get(url, timeout=timeout)
@@ -27,7 +27,7 @@ def fetch(query: str, *, timeout: float = 8.0) -> LookupResult:
         raise LookupError(f"invalid response: {exc}") from exc
 
     data = payload.get("data", [])
-    entries = [_map_entry(item) for item in data[:12]]
+    entries = [_map_entry(item) for item in data[:limit]]
 
     return LookupResult(
         query=query,

@@ -88,7 +88,7 @@ class ResultsScreen(Screen):
 
     def on_lookup_complete(self, result: LookupResult, duration_ms: int) -> None:
         self._result = result
-        text = render_text(result)
+        text = render_text(result, width=max(40, self.size.width - 2))
         self.query_one("#results", Static).update(text)
         count = len(result.entries)
         status = f"{self.source} · {count} result{'s' if count != 1 else ''} · {duration_ms} ms"

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from kotoba.model import Entry, LookupResult, Sense
+import textwrap
+
+from kotoba.model import LookupResult
 
 
-def render_text(result: LookupResult) -> str:
+def render_text(result: LookupResult, width: int | None = None) -> str:
     if not result.entries:
         return f"{result.query}: no results\n"
 
@@ -16,7 +18,10 @@ def render_text(result: LookupResult) -> str:
         for sense in entry.senses:
             pos = ", ".join(sense.pos) or "?"
             glosses = "; ".join(sense.glosses)
-            lines.append(f"  • {pos}: {glosses}")
+            line = f"  • {pos}: {glosses}"
+            if width:
+                line = textwrap.fill(line, width=width, subsequent_indent=" " * 6, break_long_words=False)
+            lines.append(line)
         if entry.tags:
             lines.append(f"  tags: {', '.join(entry.tags)}")
         blocks.append("\n".join(lines))

@@ -3,7 +3,7 @@ from unittest import mock
 
 import pytest
 
-from kotoba.cli import EXIT_NO_RESULTS, EXIT_OK, EXIT_UPSTREAM_ERROR, main
+from kotoba.cli import EXIT_NO_RESULTS, EXIT_OK, EXIT_UPSTREAM_ERROR, EXIT_USAGE, main
 
 
 def test_cli_usage_returns_64():
@@ -14,7 +14,7 @@ def test_cli_usage_returns_64():
 
 
 def test_cli_print_jisho_no_results(monkeypatch):
-    def fetch(query):
+    def fetch(query, **kwargs):
         from kotoba.model import LookupResult
         return LookupResult(query=query, source="jisho", entries=())
 
@@ -25,7 +25,7 @@ def test_cli_print_jisho_no_results(monkeypatch):
 def test_cli_print_jisho_result(capsys, monkeypatch):
     from kotoba.model import Entry, LookupResult, Sense
 
-    def fetch(query):
+    def fetch(query, **kwargs):
         return LookupResult(
             query=query,
             source="jisho",
@@ -41,7 +41,7 @@ def test_cli_print_jisho_result(capsys, monkeypatch):
 
 
 def test_cli_print_upstream_error(capsys, monkeypatch):
-    def fetch(query):
+    def fetch(query, **kwargs):
         raise RuntimeError("network down")
 
     monkeypatch.setattr("kotoba.jisho.fetch", fetch)
@@ -52,7 +52,7 @@ def test_cli_print_upstream_error(capsys, monkeypatch):
 def test_cli_print_in_pipe(capsys, monkeypatch):
     from kotoba.model import Entry, LookupResult, Sense
 
-    def fetch(query):
+    def fetch(query, **kwargs):
         return LookupResult(
             query=query,
             source="jisho",
@@ -70,7 +70,7 @@ def test_cli_selection_feeds_query(capsys, monkeypatch):
 
     captured = {}
 
-    def fetch(query):
+    def fetch(query, **kwargs):
         captured["query"] = query
         return LookupResult(query=query, source="jisho", entries=())
 
@@ -78,3 +78,70 @@ def test_cli_selection_feeds_query(capsys, monkeypatch):
     monkeypatch.setattr("kotoba.cli.initial_query", lambda arg=None, *, use_selection=False: "猫")
     assert main(["jp", "--selection", "--print"]) == EXIT_NO_RESULTS
     assert captured["query"] == "猫"
+
+
+def test_bare_query_autodetects_japanese(monkeypatch):
+    from kotoba.model import LookupResult
+
+    seen = {}
+
+    def fetch(query, **kwargs):
+        seen["query"] = query
+        return LookupResult(query=query, source="jisho", entries=())
+
+    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    assert main(["猫", "--print"]) == EXIT_NO_RESULTS
+    assert seen["query"] == "猫"
+
+
+def test_bare_query_autodetects_english(monkeypatch):
+    from kotoba.model import LookupResult
+
+    seen = {}
+
+    def fetch(query, **kwargs):
+        seen["query"] = query
+        return LookupResult(query=query, source="wordnet", entries=())
+
+    monkeypatch.setattr("kotoba.wordnet.fetch", fetch)
+    assert main(["love", "--print"]) == EXIT_NO_RESULTS
+    assert seen["query"] == "love"
+
+
+def test_json_output(capsys, monkeypatch):
+    from kotoba.model import Entry, LookupResult, Sense
+
+    def fetch(query, **kwargs):
+        return LookupResult(
+            query=query,
+            source="jisho",
+            entries=(Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)),),
+            url="https://jisho.org/search/%E7%8C%AB",
+        )
+
+    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    assert main(["jp", "--json", "猫"]) == EXIT_OK
+    import json
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["entries"][0]["headword"] == "猫"
+    assert payload["entries"][0]["senses"][0]["glosses"] == ["cat"]
+
+
+def test_limit_reaches_upstream(monkeypatch):
+    from kotoba.model import LookupResult
+
+    seen = {}
+
+    def fetch(query, **kwargs):
+        seen.update(kwargs)
+        return LookupResult(query=query, source="jisho", entries=())
+
+    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    assert main(["jp", "--print", "--limit", "3", "猫"]) == EXIT_NO_RESULTS
+    assert seen["limit"] == 3
+
+
+def test_empty_query_returns_usage(capsys):
+    assert main(["jp", "--print"]) == EXIT_USAGE
+    assert "empty query" in capsys.readouterr().err

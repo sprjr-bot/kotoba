@@ -24,13 +24,24 @@ uv run kotoba jp 猫
 ## CLI usage
 
 ```
-kotoba jp [--selection] [--print] [QUERY]
-kotoba en [--selection] [--print] [QUERY]
+kotoba jp [--selection] [-p|--print] [--json] [--limit N] [QUERY]
+kotoba en [--selection] [-p|--print] [--json] [--limit N] [QUERY]
+kotoba QUERY            # source inferred from the script
 ```
 
-`--selection` uses the Wayland primary selection, then clipboard, then falls back to an empty input. `--print` forces plain text output and also activates automatically when stdout is not a TTY.
+One-off lookups:
 
-Exit codes: `0` results, `1` no results, `2` upstream/network error, `64` usage error.
+```
+kotoba 猫                # Jisho, opens the pager
+kotoba 猫 -p             # plain text to stdout, no TUI
+kotoba love -p           # WordNet, inferred from ASCII
+kotoba 猫 --json --limit 3
+kotoba jp --selection -p # lookup whatever is selected
+```
+
+`--selection` uses the Wayland primary selection, then clipboard, then falls back to an empty input. `--print` forces plain text output and also activates automatically when stdout is not a TTY. `--json` emits the same data as structured objects. `--limit` caps entries (default 12 for Jisho, all for WordNet).
+
+Exit codes: `0` results, `1` no results, `2` upstream/network error, `64` usage error (including an empty query).
 
 ## TUI keymap
 

@@ -65,3 +65,24 @@ def test_render_ends_with_single_newline():
     text = render_text(result)
     assert text.endswith("\n")
     assert not text.endswith("\n\n")
+
+
+def test_render_wraps_with_hanging_indent():
+    from kotoba.model import Entry, LookupResult, Sense
+
+    result = LookupResult(
+        query="猫背",
+        source="jisho",
+        entries=(
+            Entry(
+                headword="猫背",
+                reading="ねこぜ",
+                senses=(Sense(pos=("Noun", "Na-adjective"), glosses=(
+                    "bent back; hunchback; stoop; a long gloss that has to wrap at a narrow width",
+                )),),
+            ),
+        ),
+    )
+    out = render_text(result, width=40)
+    wrapped = [line for line in out.splitlines() if line.startswith("      ")]
+    assert wrapped, out
