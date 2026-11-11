@@ -17,6 +17,7 @@ python3Packages.buildPythonApplication {
   dependencies = with python3Packages; [
     textual
     httpx
+    genanki
   ];
 
   nativeCheckInputs = with python3Packages; [

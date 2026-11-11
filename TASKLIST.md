@@ -20,6 +20,62 @@ The per-task commit chain (963ca7e … aca4da9) is gone: eight objects under
 `.git/objects` were found zero-byte, so `HEAD` was unreadable. The working tree
 survived intact and history was rebuilt as a single commit on `feat/kotoba`.
 
+## T12 — Storage
+
+File: `${XDG_DATA_HOME:-~/.local/share}/kotoba/lists.json`, mode 0600.
+Module: `src/kotoba/lists.py` with `load()`, `save()`, `add_entry()`,
+`remove_entry()`, `delete_list()`, `get_list()`, `list_names()`, `last_list()`.
+Atomic temp-file write; dedupe on `(headword, reading)`; corrupt file raises
+`ListsError`.
+
+| Task | Status | Note |
+|------|--------|------|
+| T12 | done | lists.py + tests/test_lists.py |
+
+## T13 — Export
+
+Module: `src/kotoba/export.py`. TSV with Anki pragmas; `.apkg` via `genanki`
+with deterministic `zlib.crc32` model/deck IDs. Optional `genanki` import.
+
+| Task | Status | Note |
+|------|--------|------|
+| T13 | done | export.py + tests/test_export.py |
+
+## T14 — TUI
+
+Results screen: `a` adds to `last_list`; `A` opens list picker/new-list modal.
+`l` opens `ListsScreen`: `Enter` view entries, `d` delete entry, `x` delete
+list (confirm), `e` export (format picker). Footer/help updated.
+
+| Task | Status | Note |
+|------|--------|------|
+| T14 | done | app.py + app.tcss + tests/test_app.py |
+
+## T15 — CLI
+
+`kotoba list {add,rm,show,rm-list,export}` subcommands. `add` reuses lookup
+clients/exit codes; `export` defaults to `apkg`; `show` prints plain text.
+`--help` examples extended.
+
+| Task | Status | Note |
+|------|--------|------|
+| T15 | done | cli.py + tests/test_cli.py additions |
+
+## T16 — Tests and docs
+
+`tests/test_lists.py`, `tests/test_export.py`, `tests/test_cli.py` additions,
+`tests/test_app.py` addition, README "Lists and export" section,
+`package.nix` adds `genanki`.
+
+| Task | Status | Note |
+|------|--------|------|
+| T16 | done | README + package.nix + test suite |
+
+## Resume notes
+
+T12–T16 implemented and all tests passing locally. No push attempted; commit is
+local only.
+
 ## Post-audit fixes
 
 - `package.nix`: `src = ../.` resolved to the repo's parent; now `./.`

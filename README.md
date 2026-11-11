@@ -52,7 +52,26 @@ Exit codes: `0` results, `1` no results, `2` upstream/network error, `64` usage 
 - `j`/`k`, arrows, `pgup`/`pgdn`, `home`/`end` scroll
 - `y` copy current headword (`wl-copy`)
 - `o` open Jisho URL (`xdg-open`)
+- `a` add selected entry to the current list
+- `A` pick a list (or create a new one) and add the selected entry
+- `l` open saved lists: `Enter` view, `d` delete entry, `x` delete list, `e` export
 - `?` toggle help footer
+
+## Lists and export
+
+Save results to a JSON-backed word list and export to Anki:
+
+```
+kotoba list add 猫
+cat kotoba list show default
+kotoba list export default -f both
+```
+
+`kotoba list add` looks up the word and stores the first result. Lists live in
+`${XDG_DATA_HOME:-~/.local/share}/kotoba/lists.json` with mode `0600`. Export
+writes `${XDG_DATA_HOME:-~/.local/share}/kotoba/exports/kotoba-<list>-<date>.apkg`
+(or `.tsv`). The TSV includes Anki import pragmas; the APKG uses the `genanki`
+package and can be imported directly into Anki.
 
 ## Container
 
