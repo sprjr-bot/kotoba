@@ -1,3 +1,7 @@
+import pytest
+
+import sys
+
 from kotoba.selection import initial_query
 
 
@@ -9,6 +13,7 @@ def test_no_selection_returns_empty():
     assert initial_query(None, use_selection=False) == ""
 
 
+@pytest.mark.skipif(sys.platform == "darwin", reason="wl-paste not available on macOS")
 def test_selection_primary_then_clipboard(monkeypatch):
     calls = []
 
@@ -27,6 +32,7 @@ def test_selection_primary_then_clipboard(monkeypatch):
     assert ["wl-paste", "--primary"] in calls
 
 
+@pytest.mark.skipif(sys.platform == "darwin", reason="wl-paste not available on macOS")
 def test_missing_wl_paste_returns_empty(monkeypatch):
     monkeypatch.setattr("kotoba.selection.shutil.which", lambda cmd: None)
     assert initial_query(None, use_selection=True) == ""

@@ -1,5 +1,6 @@
 {
   lib,
+  stdenv,
   python3Packages,
   wordnet,
   wl-clipboard,
@@ -28,12 +29,13 @@ python3Packages.buildPythonApplication {
   nativeBuildInputs = [ python3Packages.pytestCheckHook ];
 
   makeWrapperArgs = [
-    "--suffix" "PATH" ":" (lib.makeBinPath [ wordnet wl-clipboard ])
+    "--suffix" "PATH" ":" (lib.makeBinPath (lib.optionals stdenv.hostPlatform.isLinux [ wl-clipboard ] ++ [ wordnet ]))
   ];
 
   meta = {
     description = "Dictionary pager TUI for Jisho and WordNet";
     license = lib.licenses.mit;
     mainProgram = "kotoba";
+    platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
 }

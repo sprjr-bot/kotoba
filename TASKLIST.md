@@ -96,7 +96,38 @@ clients/exit codes; `export` defaults to `apkg`; `show` prints plain text.
 |------|--------|------|
 | T26 | done | `localdict.py` records `archive_bytes` + `index_bytes`; `size` is their sum; legacy metadata without `index_bytes` computed from disk; `dict status` prints total row and supports `--json` |
 
-## Resume notes
+## T26 — Darwin packaging
+
+Changed `flake.nix` to declare `aarch64-darwin` as a supported system alongside
+`x86_64-linux`.  `package.nix` now accepts `stdenv`, omits `wl-clipboard` from
+the wrapper `PATH` on non-Linux hosts while keeping `wordnet` on both Linux and
+Darwin, and declares `meta.platforms` for Linux and Darwin.
+
+Tests: only `tests/test_selection.py` had Linux-bound assumptions (`wl-paste`);
+the two tests that exercise that code path are gated with
+`@pytest.mark.skipif(sys.platform == "darwin", reason="wl-paste not available on macOS")`.
+The other selection tests are platform-agnostic and remain enabled.
+
+Linux suite run before the change: 108 passed, 1 skipped, 1 xfailed.
+Linux suite run after the change: same counts.
+
+Unverified: the actual `aarch64-darwin` build must be run on seair.  Run:
+
+```bash
+nix run github:sprjr-bot/kotoba -- jp 猫
+```
+
+or, from a local checkout of `fix/darwin`:
+
+```bash
+nix build .#default
+./result/bin/kotoba --version
+./result/bin/kotoba jp 猫 --print
+```
+
+Known Darwin limitation: `--selection` still shells out to `wl-paste`, so it
+will no-op on macOS until `pbpaste` is added in a follow-up.  Container output,
+TUI code, and `src/kotoba/selection.py` were left unchanged as instructed.
 
 T17–T24 implemented; suite green (99 passed, 1 skipped, 1 xfailed). The
 delegating agent timed out before committing, so the tree was verified and
