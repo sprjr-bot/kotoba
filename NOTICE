@@ -1,0 +1,19 @@
+Dictionary and Kanji Data Attribution
+
+This application uses dictionary and kanji data from the following sources:
+
+- EDRDG (Electronic Dictionary Research and Development Group):
+  - JMdict (Japanese-English dictionary)
+  - KANJIDIC2 (kanji dictionary)
+  - Kradfile and Radkfile (kanji component/radical data)
+  - https://www.edrdg.org/
+  - Licensed under CC BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+
+- WordNet 3.0
+  - Princeton University
+  - WordNet licence applies; see https://wordnet.princeton.edu/license-and-commercial-use
+
+The local SQLite indices created by kotoba are derivative works of the
+CC BY-SA 4.0 data listed above. They are not distributed with this
+application. If you share a generated index, the share-alike obligation
+of CC BY-SA 4.0 applies.

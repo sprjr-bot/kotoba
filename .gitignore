@@ -1,0 +1,16 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+*.egg
+build/
+dist/
+.pytest_cache
+.mypy_cache
+.dmypy.json
+*.swp
+*~
+.DS_Store
+result
+result-*
