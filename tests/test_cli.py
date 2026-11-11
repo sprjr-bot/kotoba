@@ -317,12 +317,13 @@ def test_dict_status_shows_total_and_json_fields(monkeypatch, tmp_path, capsys):
     assert "total" in out
     assert main(["dict", "status", "--json"]) == EXIT_OK
     payload = _json.loads(capsys.readouterr().out)
-    row = next(r for r in payload if r["name"] == "jmdict-eng")
+    row = payload["datasets"][0]
+    assert row["name"] == "jmdict-eng"
     assert row["archive_bytes"] == 1024 * 1024
     assert row["index_bytes"] == 10 * 1024 * 1024
     assert row["size"] == 11 * 1024 * 1024
-    total = next(r for r in payload if r["name"] == "total")
-    assert total["size"] == 11 * 1024 * 1024
+    assert payload["total"]["size"] == 11 * 1024 * 1024
+    assert all(r["name"] != "total" for r in payload["datasets"])
 
 
 def test_dict_status_empty_json(monkeypatch, tmp_path, capsys):
@@ -330,7 +331,10 @@ def test_dict_status_empty_json(monkeypatch, tmp_path, capsys):
 
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     assert main(["dict", "status", "--json"]) == EXIT_OK
-    assert _json.loads(capsys.readouterr().out) == []
+    assert _json.loads(capsys.readouterr().out) == {
+        "datasets": [],
+        "total": {"archive_bytes": 0, "index_bytes": 0, "size": 0},
+    }
 
 
 def test_dict_status_legacy_meta_without_index_bytes(monkeypatch, tmp_path, capsys):

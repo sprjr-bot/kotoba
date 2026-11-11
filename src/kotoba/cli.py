@@ -417,10 +417,20 @@ def _parse_args(argv: list[str] | None = None):
 
 def _cmd_dict_status(args) -> int:
     rows = local_status()
+    data_rows = rows[:-1] if rows and rows[-1]["name"] == "total" else rows
+    total = rows[-1] if rows and rows[-1]["name"] == "total" else None
     if args.as_json:
-        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        total_fields = {k: v for k, v in (total or {}).items() if k in ("archive_bytes", "index_bytes", "size")}
+        print(json.dumps(
+            {
+                "datasets": data_rows,
+                "total": total_fields or {"archive_bytes": 0, "index_bytes": 0, "size": 0},
+            },
+            ensure_ascii=False,
+            indent=2,
+        ))
         return EXIT_OK
-    if not rows:
+    if not data_rows:
         print("no datasets installed")
         return EXIT_OK
     print(f"{'dataset':<20} {'version':<20} {'size':>10} {'licence'}")
