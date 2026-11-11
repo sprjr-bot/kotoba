@@ -1,8 +1,14 @@
 Screen {
     align: center middle;
+    layout: vertical;
 }
 
 QueryScreen {
+    layout: vertical;
+    padding: 1 2;
+}
+
+OnboardingScreen, DownloadProgressScreen, SettingsScreen, LicencesScreen, KanjiScreen {
     layout: vertical;
     padding: 1 2;
 }
@@ -37,7 +43,7 @@ ResultsScreen {
 }
 
 #title {
-    height: 1;
+    height: auto;
 }
 
 #hint {
@@ -45,8 +51,49 @@ ResultsScreen {
     color: $text-muted;
 }
 
-.help-hidden {
-    display: none;
+.dialog {
+    width: 60;
+    height: auto;
+    border: solid $primary;
+    padding: 1;
+    align: center middle;
+}
+
+.dialog Static {
+    width: 100%;
+    height: auto;
+}
+
+.dialog Vertical {
+    width: 100%;
+    height: auto;
+}
+
+.dialog #title {
+    text-align: center;
+    text-style: bold;
+    margin-bottom: 1;
+    width: 100%;
+}
+
+.dialog #rows {
+    width: 100%;
+    height: auto;
+}
+
+.dialog #hint {
+    width: 100%;
+    text-align: center;
+    color: $text-muted;
+    height: auto;
+}
+
+.dialog #attribution {
+    width: 100%;
+    text-align: center;
+    color: $text-muted;
+    height: auto;
+    margin-top: 1;
 }
 
 .list-dialog {
@@ -54,20 +101,53 @@ ResultsScreen {
     height: auto;
     border: solid $primary;
     padding: 1;
+    align: center middle;
 }
 
 .list-dialog #title {
-    height: 1;
+    text-align: center;
+    text-style: bold;
     margin-bottom: 1;
+    height: auto;
 }
 
-.list-dialog Static {
+.list-dialog #lists {
+    height: auto;
+    max-height: 16;
     width: 100%;
 }
 
+.list-dialog #hint {
+    text-align: center;
+    color: $text-muted;
+    height: 1;
+    margin-top: 1;
+}
+
+.list-dialog .selected {
+    background: $primary;
+    color: $text;
+    text-style: bold;
+}
+
+.list-dialog .row {
+    height: 1;
+}
+
+.list-dialog .row:hover {
+    background: $primary 20%;
+}
+
 .confirm-dialog {
-    width: auto;
+    width: 40;
     height: auto;
     border: solid $error;
     padding: 1;
+    align: center middle;
+    layout: vertical;
+}
+
+#rows {
+    height: auto;
+    width: 100%;
 }

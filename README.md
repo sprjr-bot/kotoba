@@ -87,3 +87,33 @@ Run the CLI path:
 ```
 docker run --rm -it <image> jp --print 猫
 ```
+
+## Datasets and offline lookup
+
+`kotoba` can run with local copies of JMdict, KANJIDIC2, Kradfile and Radkfile:
+
+```
+kotoba dict status                # installed datasets and licences
+kotoba dict install --all         # download and index the default sets
+kotoba dict install jmdict-eng kanjidic2-en kradfile radkfile
+kotoba dict remove jmdict-eng
+kotoba dict update                # re-resolve the upstream release and reinstall
+kotoba dict reindex               # rebuild from stored archives
+kotoba 猫 --offline                # force local-only lookup
+kotoba kanji 猫
+```
+
+When no local dictionary is installed and `--offline` is used, the app prints a
+one-line hint and, on a TTY, offers to download the datasets before falling back
+to the API.
+
+### Attribution
+
+- EDRDG, JMdict and KANJIDIC2 — https://www.edrdg.org/ — CC BY-SA 4.0,
+  https://creativecommons.org/licenses/by-sa/4.0/
+- EDRDG, Kradfile and Radkfile — same licence family
+- WordNet 3.0 — Princeton University — WordNet licence applies
+
+The local SQLite indices are derivative works of CC BY-SA 4.0 data. This
+application does not distribute them; if you share a generated index, the
+share-alike obligation applies. See `NOTICE` for the full attribution text.

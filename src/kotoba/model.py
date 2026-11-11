@@ -23,6 +23,6 @@ class Entry:
 @dataclass(frozen=True)
 class LookupResult:
     query: str
-    source: Literal["jisho", "wordnet"]
+    source: Literal["jisho", "wordnet", "jmdict"]
     entries: tuple[Entry, ...]
     url: str | None = None

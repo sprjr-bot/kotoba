@@ -282,3 +282,40 @@ def test_list_help_shows_subcommands(capsys):
     assert exc.value.code == 0
     out = capsys.readouterr().out
     assert "add" in out and "export" in out and "show" in out
+
+def test_dict_status_is_command_not_query(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert main(["dict", "status"]) == EXIT_OK
+    assert "no datasets installed" in capsys.readouterr().out
+
+
+def test_kanji_is_command_not_query(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert main(["kanji", "猫"]) == EXIT_NO_RESULTS
+    assert "kanjidic2-en" in capsys.readouterr().err
+
+
+def test_offline_flag_accepted_after_subcommand(monkeypatch, tmp_path, capsys):
+    from kotoba.model import LookupResult
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    calls = []
+
+    def fetch(query, **kwargs):
+        calls.append(query)
+        return LookupResult(query=query, source="jisho", entries=())
+
+    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    assert main(["猫", "--print", "--offline"]) == EXIT_NO_RESULTS
+    assert calls == ["猫"]
+
+
+def test_offline_missing_data_reports_once(monkeypatch, tmp_path, capsys):
+    from kotoba.model import LookupResult
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    monkeypatch.setattr("kotoba.jisho.fetch", lambda query, **kw: LookupResult(query=query, source="jisho", entries=()))
+    assert main(["猫", "--print", "--offline"]) == EXIT_NO_RESULTS
+    err = capsys.readouterr().err
+    assert err.count("local dictionary not installed") == 1
+

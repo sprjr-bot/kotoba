@@ -71,10 +71,24 @@ clients/exit codes; `export` defaults to `apkg`; `show` prints plain text.
 |------|--------|------|
 | T16 | done | README + package.nix + test suite |
 
+## T17-T24 — Offline datasets, onboarding, settings, kanji UI
+
+| Task | Status | Note |
+|------|--------|------|
+| T17 | done | `src/kotoba/localdict.py`: install/index/lookup/kanji for JMdict/KANJIDIC2/Kradfile/Radkfile |
+| T18 | done | `src/kotoba/config.py`: config round-trip, mode helpers |
+| T19 | done | `src/kotoba/lookup.py`: mode resolution (api-only/local-only/local-first), offline fallbacks |
+| T20 | done | CLI: `dict {status,install,remove,update,reindex}` and `kanji`; global `--offline` |
+| T21 | done | TUI: onboarding screen, settings screen, kanji panel, status bar |
+| T22 | done | `NOTICE` and README attribution section |
+| T23 | done | tests for localdict/config/lookup/TUI/CLI (no live network) |
+| T24 | done | full suite green: 99 passed, 1 skipped, 1 xfailed |
+
 ## Resume notes
 
-T12–T16 implemented and all tests passing locally. No push attempted; commit is
-local only.
+T17–T24 implemented; suite green (99 passed, 1 skipped, 1 xfailed). The
+delegating agent timed out before committing, so the tree was verified and
+finished by the parent agent; see Post-audit fixes for the defects found.
 
 ## Post-audit fixes
 
@@ -86,6 +100,27 @@ local only.
   `call_after_refresh`
 - removed `tests/default.nix`: referenced undefined `pkgs.kotoba`, wired into no check
 - `pyproject.toml`: registered the `network` marker
+
+## Post-delegation fixes (offline feature)
+
+- six screen classes defined `_render`, shadowing `Widget._render`; the compositor
+  got `None` instead of a `Visual`, so Settings/Onboarding/Lists/Entries/Export and
+  the list picker never mounted children and crashed on refresh. Renamed to
+  `_render_rows`
+- `ResultsScreen` bound both `k,up` (scroll) and `k` (kanji panel); the first binding
+  won, so kanji never opened. Kanji moved to `K`
+- `_with_source()` only recognised `list`, so `kotoba dict …` and `kotoba kanji …`
+  were parsed as queries and rejected their arguments; jp/en/list/dict/kanji now
+  pass through untouched
+- `--offline` was only accepted before the query; added to the jp/en subparsers
+  (`default=argparse.SUPPRESS` so the global flag still wins)
+- the "local dictionary not installed" hint printed twice — the copy in
+  `lookup.py` is gone; `cli.py` owns it
+- local results reported `source="jisho"`; now `jmdict`, and `LookupResult.source`
+  widened accordingly
+- `tests/test_localdict.py` indexed the real 113 MB JMdict through a fixture named
+  "sample"; the suite took minutes and needed 158 MB of untracked assets. Replaced
+  with synthetic tarred fixtures plus a patched `_PINNED`, covering same cases in 3 s
 
 ## CLI ergonomics (post-review)
 
