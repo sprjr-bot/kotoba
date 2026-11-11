@@ -350,6 +350,7 @@ def _build_dict_parser(sub) -> argparse.ArgumentParser:
     sub_dict = p.add_subparsers(dest="dict_command", required=True)
 
     status = sub_dict.add_parser("status", help="show installed datasets and licences")
+    status.add_argument("--json", action="store_true", dest="as_json", help="JSON output")
 
     install = sub_dict.add_parser("install", help="download and index datasets")
     install.add_argument("name", nargs="*", help=f"dataset names: {valid}")
@@ -414,16 +415,24 @@ def _parse_args(argv: list[str] | None = None):
     return args
 
 
-def _cmd_dict_status() -> int:
+def _cmd_dict_status(args) -> int:
     rows = local_status()
+    if args.as_json:
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return EXIT_OK
     if not rows:
         print("no datasets installed")
         return EXIT_OK
     print(f"{'dataset':<20} {'version':<20} {'size':>10} {'licence'}")
-    for row in rows:
+    data_rows = rows[:-1] if rows and rows[-1]["name"] == "total" else rows
+    total = rows[-1] if rows and rows[-1]["name"] == "total" else None
+    for row in data_rows:
         size = row.get("size", 0)
         size_mb = f"{size / (1024 * 1024):.2f} MB"
         print(f"{row['name']:<20} {row['version']:<20} {size_mb:>10} {row['license']}")
+    if total:
+        size_mb = f"{total['size'] / (1024 * 1024):.2f} MB"
+        print(f"{'total':<20} {'':<20} {size_mb:>10}")
     print()
     print("Dictionary data from EDRDG (JMdict/KANJIDIC2/Kradfile/Radkfile), https://www.edrdg.org/")
     print("Licensed under CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/")
@@ -544,7 +553,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "dict":
         if args.dict_command == "status":
-            return _cmd_dict_status()
+            return _cmd_dict_status(args)
         if args.dict_command == "install":
             return _cmd_dict_install(args)
         if args.dict_command == "remove":

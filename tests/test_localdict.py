@@ -297,6 +297,42 @@ def test_lookup_no_data_fallback(monkeypatch, fresh_data):
     assert called == [("jisho", "猫")]
 
 
+def test_install_records_archive_and_index_bytes(fresh_data, assets, pinned):
+    localdict.install("jmdict-eng", fetcher=_fetcher(assets))
+    dataset_dir = _dataset_dir("jmdict-eng")
+    meta = json.loads((dataset_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["archive_bytes"] == (dataset_dir / meta["asset"]).stat().st_size
+    assert meta["index_bytes"] == localdict._index_size(dataset_dir)
+    assert meta["size"] == meta["archive_bytes"] + meta["index_bytes"]
+
+
+def test_status_total_equals_sum(fresh_data, assets, pinned):
+    localdict.install("jmdict-eng", fetcher=_fetcher(assets))
+    rows = localdict.status()
+    data = {r["name"]: r for r in rows}
+    row = data["jmdict-eng"]
+    assert row["size"] == row["archive_bytes"] + row["index_bytes"]
+    assert data["total"]["size"] == data["total"]["archive_bytes"] + data["total"]["index_bytes"]
+
+
+def test_legacy_meta_without_index_bytes_reports_sane_size(fresh_data, assets, pinned):
+    localdict.install("jmdict-eng", fetcher=_fetcher(assets))
+    dataset_dir = _dataset_dir("jmdict-eng")
+    meta = json.loads((dataset_dir / "meta.json").read_text(encoding="utf-8"))
+    del meta["archive_bytes"]
+    del meta["index_bytes"]
+    (dataset_dir / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    rows = localdict.status()
+    row = next(r for r in rows if r["name"] == "jmdict-eng")
+    expected_index = localdict._index_size(dataset_dir)
+    expected_archive = (dataset_dir / meta["asset"]).stat().st_size
+    assert row["index_bytes"] == expected_index
+    assert row["archive_bytes"] == expected_archive
+    assert row["size"] == expected_archive + expected_index
+    # legacy metadata is not rewritten
+    assert "index_bytes" not in json.loads((dataset_dir / "meta.json").read_text(encoding="utf-8"))
+
+
 def test_local_status_and_remove(fresh_data, assets, pinned):
     localdict.install("jmdict-eng", fetcher=_fetcher(assets))
     rows = localdict.status()
