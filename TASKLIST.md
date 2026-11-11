@@ -90,6 +90,12 @@ clients/exit codes; `export` defaults to `apkg`; `show` prints plain text.
 |------|--------|------|
 | T25 | done | `dict install` validates dataset names and exits 64 with did-you-mean; `dict status` documents empty exit code; README quickstart shows Nix sequence as separate lines |
 
+## T26 — Accurate `dict status` size reporting
+
+| Task | Status | Note |
+|------|--------|------|
+| T26 | done | `localdict.py` records `archive_bytes` + `index_bytes`; `size` is their sum; legacy metadata without `index_bytes` computed from disk; `dict status` prints total row and supports `--json` |
+
 ## Resume notes
 
 T17–T24 implemented; suite green (99 passed, 1 skipped, 1 xfailed). The

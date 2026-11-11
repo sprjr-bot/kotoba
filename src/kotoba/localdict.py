@@ -86,6 +86,15 @@ def _db_path(dataset_dir: Path) -> Path:
     return dataset_dir / "index.sqlite3"
 
 
+def _index_size(dataset_dir: Path) -> int:
+    total = 0
+    for suffix in ("", "-wal", "-shm"):
+        path = dataset_dir / ("index.sqlite3" + suffix)
+        if path.exists():
+            total += path.stat().st_size
+    return total
+
+
 def _connect_index(dataset_dir: Path) -> sqlite3.Connection:
     con = sqlite3.connect(str(_db_path(dataset_dir)))
     con.execute("PRAGMA journal_mode=OFF")
@@ -412,7 +421,9 @@ def install(
         "version": version,
         "asset": asset_name,
         "sha256": actual,
-        "size": archive_path.stat().st_size,
+        "archive_bytes": archive_path.stat().st_size,
+        "index_bytes": _index_size(dataset_dir),
+        "size": archive_path.stat().st_size + _index_size(dataset_dir),
         "source_url": source_url,
         "license": license_id,
         "attribution": attribution,
@@ -619,14 +630,34 @@ def kanji(literal: str) -> dict | None:
 
 def status() -> list[dict]:
     result = []
+    total = 0
     for dataset, meta in installed().items():
+        dataset_dir = _data_dir() / dataset
+        archive_bytes = meta.get("archive_bytes")
+        index_bytes = meta.get("index_bytes")
+        if index_bytes is None:
+            index_bytes = _index_size(dataset_dir)
+        if archive_bytes is None:
+            archive_bytes = (dataset_dir / meta.get("asset", "")).stat().st_size if meta.get("asset") and (dataset_dir / meta["asset"]).exists() else 0
+        size = archive_bytes + index_bytes
+        total += size
         info = {
             "name": dataset,
             "version": meta.get("version", ""),
-            "size": meta.get("size", 0),
+            "archive_bytes": archive_bytes,
+            "index_bytes": index_bytes,
+            "size": size,
             "source_url": meta.get("source_url", ""),
             "license": meta.get("license", ""),
             "attribution": meta.get("attribution", ""),
         }
         result.append(info)
+    if result:
+        result.append({
+            "name": "total",
+            "version": "",
+            "archive_bytes": sum(r["archive_bytes"] for r in result if r["name"] != "total"),
+            "index_bytes": sum(r["index_bytes"] for r in result if r["name"] != "total"),
+            "size": total,
+        })
     return result

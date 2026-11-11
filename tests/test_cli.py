@@ -283,6 +283,88 @@ def test_list_help_shows_subcommands(capsys):
     out = capsys.readouterr().out
     assert "add" in out and "export" in out and "show" in out
 
+def test_dict_status_shows_total_and_json_fields(monkeypatch, tmp_path, capsys):
+    import json as _json
+    from kotoba import localdict
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    data_dir = tmp_path / "kotoba" / "dict"
+    data_dir.mkdir(parents=True)
+    dataset_dir = data_dir / "jmdict-eng"
+    dataset_dir.mkdir()
+    archive = dataset_dir / "jmdict-eng-3.6.2.json.tgz"
+    archive.write_bytes(b"x" * (1024 * 1024))
+    db = dataset_dir / "index.sqlite3"
+    db.write_bytes(b"x" * (10 * 1024 * 1024))
+    meta = {
+        "name": "jmdict-eng",
+        "version": "3.6.2",
+        "asset": "jmdict-eng-3.6.2.json.tgz",
+        "sha256": "0" * 64,
+        "archive_bytes": 1024 * 1024,
+        "index_bytes": 10 * 1024 * 1024,
+        "size": 11 * 1024 * 1024,
+        "source_url": "https://example.com",
+        "license": "CC BY-SA 4.0",
+        "attribution": "EDRDG",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+    }
+    (dataset_dir / "meta.json").write_text(_json.dumps(meta, indent=2), encoding="utf-8")
+    assert main(["dict", "status"]) == EXIT_OK
+    out = capsys.readouterr().out
+    assert "jmdict-eng" in out
+    assert "11.00 MB" in out
+    assert "total" in out
+    assert main(["dict", "status", "--json"]) == EXIT_OK
+    payload = _json.loads(capsys.readouterr().out)
+    row = payload["datasets"][0]
+    assert row["name"] == "jmdict-eng"
+    assert row["archive_bytes"] == 1024 * 1024
+    assert row["index_bytes"] == 10 * 1024 * 1024
+    assert row["size"] == 11 * 1024 * 1024
+    assert payload["total"]["size"] == 11 * 1024 * 1024
+    assert all(r["name"] != "total" for r in payload["datasets"])
+
+
+def test_dict_status_empty_json(monkeypatch, tmp_path, capsys):
+    import json as _json
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert main(["dict", "status", "--json"]) == EXIT_OK
+    assert _json.loads(capsys.readouterr().out) == {
+        "datasets": [],
+        "total": {"archive_bytes": 0, "index_bytes": 0, "size": 0},
+    }
+
+
+def test_dict_status_legacy_meta_without_index_bytes(monkeypatch, tmp_path, capsys):
+    import json as _json
+
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    data_dir = tmp_path / "kotoba" / "dict"
+    data_dir.mkdir(parents=True)
+    dataset_dir = data_dir / "jmdict-eng"
+    dataset_dir.mkdir()
+    archive = dataset_dir / "jmdict-eng-3.6.2.json.tgz"
+    archive.write_bytes(b"x" * (1024 * 1024))
+    db = dataset_dir / "index.sqlite3"
+    db.write_bytes(b"x" * (10 * 1024 * 1024))
+    meta = {
+        "name": "jmdict-eng",
+        "version": "3.6.2",
+        "asset": "jmdict-eng-3.6.2.json.tgz",
+        "sha256": "0" * 64,
+        "size": 1024 * 1024,
+        "source_url": "https://example.com",
+        "license": "CC BY-SA 4.0",
+        "attribution": "EDRDG",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+    }
+    (dataset_dir / "meta.json").write_text(_json.dumps(meta, indent=2), encoding="utf-8")
+    assert main(["dict", "status"]) == EXIT_OK
+    assert "11.00 MB" in capsys.readouterr().out
+
+
 def test_dict_status_is_command_not_query(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     assert main(["dict", "status"]) == EXIT_OK
