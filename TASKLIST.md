@@ -84,6 +84,12 @@ clients/exit codes; `export` defaults to `apkg`; `show` prints plain text.
 | T23 | done | tests for localdict/config/lookup/TUI/CLI (no live network) |
 | T24 | done | full suite green: 99 passed, 1 skipped, 1 xfailed |
 
+## T25 — CLI dictionary UX pass
+
+| Task | Status | Note |
+|------|--------|------|
+| T25 | done | `dict install` validates dataset names and exits 64 with did-you-mean; `dict status` documents empty exit code; README quickstart shows Nix sequence as separate lines |
+
 ## Resume notes
 
 T17–T24 implemented; suite green (99 passed, 1 skipped, 1 xfailed). The
@@ -130,6 +136,10 @@ finished by the parent agent; see Post-audit fixes for the defects found.
 - `--help` documents flag semantics, examples, and exit codes; `--version`; usage errors exit 64.
 
 ## Verification
+
+Verified Nix build on seanix: wheel built, `pytestCheckHook` ran in sandbox,
+99 passed / 1 skipped / 1 xfailed in ~4 s, Python 3.14.10, `genanki` resolved.
+`./result/bin/kotoba --version` -> 0.1.0.
 
 `./.venv/bin/pytest -q` → 40 passed, 1 skipped (live network test), 1 xfailed
 (WordNet fixture). Live checks: `kotoba 猫 -p` (exit 0), `kotoba 猫 --json --limit 2`,

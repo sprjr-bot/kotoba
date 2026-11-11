@@ -345,18 +345,19 @@ def _build_list_parser(sub) -> argparse.ArgumentParser:
 
 
 def _build_dict_parser(sub) -> argparse.ArgumentParser:
+    valid = ", ".join(_VALID_DATASET_NAMES)
     p = sub.add_parser("dict", help="manage local dictionary datasets", description="Manage local dictionary datasets.")
     sub_dict = p.add_subparsers(dest="dict_command", required=True)
 
     status = sub_dict.add_parser("status", help="show installed datasets and licences")
 
     install = sub_dict.add_parser("install", help="download and index datasets")
-    install.add_argument("name", nargs="*", help="dataset names")
+    install.add_argument("name", nargs="*", help=f"dataset names: {valid}")
     install.add_argument("--all", action="store_true", dest="all_datasets", help="install all default datasets")
     install.add_argument("--latest", action="store_true", help="bypass pinned hash verification")
 
     remove = sub_dict.add_parser("remove", help="remove an installed dataset")
-    remove.add_argument("name", help="dataset name")
+    remove.add_argument("name", choices=_VALID_DATASET_NAMES, help="dataset name")
 
     sub_dict.add_parser("update", help="re-resolve and reinstall installed datasets")
     sub_dict.add_parser("reindex", help="rebuild indices from stored archives")
@@ -431,6 +432,15 @@ def _cmd_dict_status() -> int:
     return EXIT_OK
 
 
+_VALID_DATASET_NAMES = ["jmdict-eng", "jmdict-eng-common", "kanjidic2-en", "kradfile", "radkfile"]
+
+
+def _dataset_suggestions(name: str, names: list[str], n: int = 3) -> list[str]:
+    import difflib
+
+    return difflib.get_close_matches(name, names, n=n, cutoff=0.4)
+
+
 def _cmd_dict_install(args) -> int:
     if args.all_datasets:
         targets = []
@@ -439,6 +449,16 @@ def _cmd_dict_install(args) -> int:
     else:
         sys.stderr.write("kotoba dict install: specify datasets or --all\n")
         return EXIT_USAGE
+
+    invalid = [n for n in targets if n not in _VALID_DATASET_NAMES]
+    if invalid:
+        msg = f"kotoba dict install: unknown dataset: {invalid[0]}"
+        suggestions = _dataset_suggestions(invalid[0], _VALID_DATASET_NAMES)
+        if suggestions:
+            msg += f"\n  did you mean: {', '.join(suggestions)}"
+        sys.stderr.write(f"{msg}\n  valid datasets: {', '.join(_VALID_DATASET_NAMES)}\n")
+        return EXIT_USAGE
+
     try:
         metas = install_datasets(targets, all_=args.all_datasets, latest=args.latest)
     except Exception as exc:

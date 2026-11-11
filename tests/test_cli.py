@@ -289,6 +289,28 @@ def test_dict_status_is_command_not_query(monkeypatch, tmp_path, capsys):
     assert "no datasets installed" in capsys.readouterr().out
 
 
+def test_dict_install_unknown_dataset_usage_error(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert main(["dict", "install", "./result/bin/kotoba"]) == EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "unknown dataset" in err
+    for name in ("jmdict-eng", "jmdict-eng-common", "kanjidic2-en", "kradfile", "radkfile"):
+        assert name in err
+
+
+def test_dict_install_suggests_close_match(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    assert main(["dict", "install", "jmdict-engg"]) == EXIT_USAGE
+    assert "did you mean" in capsys.readouterr().err
+
+
+def test_dict_install_bare_prompts_interactive(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    assert main(["dict", "install"]) == EXIT_USAGE
+    assert "specify datasets or --all" in capsys.readouterr().err
+
+
 def test_kanji_is_command_not_query(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     assert main(["kanji", "猫"]) == EXIT_NO_RESULTS

@@ -88,6 +88,36 @@ Run the CLI path:
 docker run --rm -it <image> jp --print 猫
 ```
 
+## Quickstart with Nix
+
+The repo ships no `flake.lock`. Pin inputs before building:
+
+```
+nix flake lock
+nix build
+./result/bin/kotoba --version
+```
+
+`nix build` writes `flake.lock` into the working tree; commit it after the first
+successful build so other hosts reproduce the same closure.
+
+Install the four default datasets for offline Japanese lookup and kanji details:
+
+```
+./result/bin/kotoba dict install jmdict-eng kanjidic2-en kradfile radkfile
+./result/bin/kotoba dict status
+```
+
+For a smaller install that covers common vocabulary only, use the alternative
+JMdict variant:
+
+```
+./result/bin/kotoba dict install jmdict-eng-common kanjidic2-en kradfile radkfile
+```
+
+`jmdict-eng` and `jmdict-eng-common` are mutually exclusive; installing one
+removes the other.
+
 ## Datasets and offline lookup
 
 `kotoba` can run with local copies of JMdict, KANJIDIC2, Kradfile and Radkfile:
