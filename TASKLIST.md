@@ -36,10 +36,11 @@ survived intact and history was rebuilt as a single commit on `feat/kotoba`.
 - Bare query: `kotoba 猫` / `kotoba love` infers the source from the script.
 - `-p/--print`, `--json`, `--limit N` for one-off lookups.
 - Pager wraps long senses with a hanging indent instead of wrapping to column 0.
+- `--help` documents flag semantics, examples, and exit codes; `--version`; usage errors exit 64.
 
 ## Verification
 
-`./.venv/bin/pytest -q` → 37 passed, 1 skipped (live network test), 1 xfailed
+`./.venv/bin/pytest -q` → 40 passed, 1 skipped (live network test), 1 xfailed
 (WordNet fixture). Live checks: `kotoba 猫 -p` (exit 0), `kotoba 猫 --json --limit 2`,
 `kotoba love -p` (exit 2, `wn` absent here), `kotoba jp --print` (exit 64).
 

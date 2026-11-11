@@ -43,26 +43,70 @@ def _with_source(argv: list[str]) -> list[str]:
     return argv
 
 
-def _parse_args(argv: list[str] | None = None) -> tuple[str, bool, bool, str, int | None, bool]:
-    argv = _with_source(list(sys.argv[1:] if argv is None else argv))
-    parser = argparse.ArgumentParser(
-        prog="kotoba",
-        description="Dictionary pager for Jisho and WordNet",
-        epilog="A bare query picks jp for kana/kanji and en otherwise.",
-    )
-    sub = parser.add_subparsers(dest="command", required=True)
-    for name, label in (("jp", "Jisho"), ("en", "WordNet")):
-        p = sub.add_parser(name, help=f"search {label}")
-        p.add_argument("query", nargs="?", default="", help="word to look up")
-        p.add_argument("--selection", action="store_true", help="use primary selection, then clipboard, as the query")
-        p.add_argument("-p", "--print", action="store_true", dest="print_only", help="plain text output, no TUI")
-        p.add_argument("--json", action="store_true", dest="as_json", help="JSON output")
-        p.add_argument("--limit", type=int, default=None, help="maximum entries to show")
+EPILOG = """\
+examples:
+  kotoba 猫                  open the pager for a Japanese word
+  kotoba love -p             WordNet, plain text to stdout
+  kotoba 猫 --json --limit 3 structured output for scripts
+  kotoba jp --selection -p   look up the primary selection
 
+A bare query picks jp for kana/kanji and en otherwise.
+
+exit codes: 0 results, 1 no results, 2 upstream error, 64 usage error"""
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        self.print_usage(sys.stderr)
+        sys.stderr.write(f"{self.prog}: error: {message}\n")
+        raise SystemExit(EXIT_USAGE)
+
+
+def _version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("kotoba")
+    except Exception:
+        return "0.1.0"
+
+
+def _parse_args(argv: list[str] | None = None) -> tuple[str, bool, bool, str, int | None, bool]:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if not raw:
+        _build_parser().print_help(sys.stderr)
+        raise SystemExit(EXIT_USAGE)
+
+    if raw[0].startswith("-") and raw[0] not in ("-h", "--help", "--version"):
+        sys.stderr.write(f"kotoba: error: unrecognized argument: {raw[0]}\n")
+        raise SystemExit(EXIT_USAGE)
+
+    argv = _with_source(raw)
+    parser = _build_parser()
     args = parser.parse_args(argv)
     limit = args.limit if args.limit and args.limit > 0 else None
     query = initial_query(args.query or None, use_selection=args.selection)
     return ALIASES[args.command], args.selection, args.print_only, query, limit, args.as_json
+
+
+def _build_parser() -> _Parser:
+    parser = _Parser(
+        prog="kotoba",
+        description="Dictionary pager for Jisho and WordNet",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--version", action="version", version=f"kotoba {_version()}")
+    sub = parser.add_subparsers(dest="command", required=True, metavar="{jp,en}")
+    for name, label in (("jp", "Jisho"), ("en", "WordNet")):
+        p = sub.add_parser(name, help=f"search {label}", description=f"Search {label}.")
+        p.add_argument("query", nargs="?", default="", help="word to look up (omit to type in the TUI)")
+        p.add_argument("--selection", action="store_true", help="use primary selection, then clipboard, as the query")
+        p.add_argument("-p", "--print", action="store_true", dest="print_only", help="plain text output, no TUI")
+        p.add_argument("--json", action="store_true", dest="as_json", help="JSON output")
+        p.add_argument("--limit", type=int, default=None, metavar="N", help="maximum entries to show (Jisho default 12)")
+
+    return parser
 
 
 def _lookup(source: Source, query: str, limit: int | None):

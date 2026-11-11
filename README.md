@@ -39,7 +39,7 @@ kotoba 猫 --json --limit 3
 kotoba jp --selection -p # lookup whatever is selected
 ```
 
-`--selection` uses the Wayland primary selection, then clipboard, then falls back to an empty input. `--print` forces plain text output and also activates automatically when stdout is not a TTY. `--json` emits the same data as structured objects. `--limit` caps entries (default 12 for Jisho, all for WordNet).
+`--selection` uses the Wayland primary selection, then clipboard, then falls back to an empty input. `--print` forces plain text output and also activates automatically when stdout is not a TTY. `--json` emits the same data as structured objects. `--limit` caps entries (default 12 for Jisho, all for WordNet). `kotoba --help` and `kotoba jp --help` document every flag, with examples and exit codes; `kotoba --version` prints the version.
 
 Exit codes: `0` results, `1` no results, `2` upstream/network error, `64` usage error (including an empty query).
 

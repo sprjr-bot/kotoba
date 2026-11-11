@@ -6,13 +6,6 @@ import pytest
 from kotoba.cli import EXIT_NO_RESULTS, EXIT_OK, EXIT_UPSTREAM_ERROR, EXIT_USAGE, main
 
 
-def test_cli_usage_returns_64():
-    with pytest.raises(SystemExit) as exc_info:
-        main([])
-    # argparse uses code 2 for usage errors; our usage test checks error path
-    assert exc_info.value.code == 2
-
-
 def test_cli_print_jisho_no_results(monkeypatch):
     def fetch(query, **kwargs):
         from kotoba.model import LookupResult
@@ -145,3 +138,51 @@ def test_limit_reaches_upstream(monkeypatch):
 def test_empty_query_returns_usage(capsys):
     assert main(["jp", "--print"]) == EXIT_USAGE
     assert "empty query" in capsys.readouterr().err
+
+
+def test_help_exits_zero(capsys):
+    import pytest
+
+    with pytest.raises(SystemExit) as exc:
+        main(["-h"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "kotoba 猫" in out
+    assert "exit codes" in out
+
+
+def test_subcommand_help(capsys):
+    import pytest
+
+    with pytest.raises(SystemExit) as exc:
+        main(["jp", "-h"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "--selection" in out and "--limit" in out
+
+
+def test_version_flag(capsys):
+    import pytest
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert capsys.readouterr().out.startswith("kotoba ")
+
+
+def test_no_args_is_usage_error(capsys):
+    import pytest
+
+    with pytest.raises(SystemExit) as exc:
+        main([])
+    assert exc.value.code == EXIT_USAGE
+    assert "usage:" in capsys.readouterr().err
+
+
+def test_unknown_flag_is_usage_error(capsys):
+    import pytest
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--nope"])
+    assert exc.value.code == EXIT_USAGE
+    assert "unrecognized" in capsys.readouterr().err
