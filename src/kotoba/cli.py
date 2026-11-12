@@ -101,14 +101,9 @@ def _version() -> str:
 
 
 def _lookup(source: Source, query: str, limit: int | None):
-    if source == "jisho":
-        from kotoba import jisho
+    from kotoba import langs
 
-        return jisho.fetch(query, limit=limit or 12)
-
-    from kotoba import wordnet
-
-    return wordnet.fetch(query, limit=limit)
+    return langs.get(source).api_search(query, limit=limit)
 
 
 def _as_json(result: LookupResult) -> str:

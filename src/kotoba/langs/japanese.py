@@ -49,7 +49,6 @@ def _map_entry(item: dict) -> Entry:
 
 
 def fetch(query: str, *, timeout: float = 8.0, limit: int = 12) -> LookupResult:
-    """Live Jisho lookup. Kept as a module-level helper for backwards compatibility."""
     url = f"https://jisho.org/api/v1/search/words?keyword={quote(query, safe='')}"
     try:
         response = httpx.get(url, timeout=timeout)
@@ -84,7 +83,6 @@ class Japanese(Language):
     code = "jisho"
     name = "Japanese"
     aliases = ("jp", "jisho", "jmdict")
-    api_module = "kotoba.jisho"
 
     def datasets(self) -> list[str]:
         return [name for name, _ in sorted(_DATASET_ORDER.items(), key=lambda kv: kv[1])]

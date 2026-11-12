@@ -65,13 +65,7 @@ def _fetch_core(
     query: str,
     limit: int | None,
     which_fn,
-) -> LookupResult:
-    """Run the ``wn`` CLI and parse the output.
-
-    *which_fn* is the callable used to locate the ``wn`` binary.  It is exposed
-    so that the legacy ``kotoba.wordnet`` shim can use its own ``shutil.which``
-    and remain patchable by existing tests.
-    """
+):
     if not which_fn("wn"):
         raise LookupError("wordnet not installed")
 
@@ -96,7 +90,6 @@ def _fetch_core(
 
 
 def fetch(query: str, *, limit: int | None = None) -> LookupResult:
-    """Live WordNet lookup. Kept as a module-level helper for backwards compatibility."""
     return _fetch_core(query, limit, shutil.which)
 
 
@@ -104,7 +97,6 @@ class English(Language):
     code = "wordnet"
     name = "English"
     aliases = ("en", "wordnet")
-    api_module = "kotoba.wordnet"
 
     def datasets(self) -> list[str]:
         return []

@@ -12,7 +12,6 @@ class Language(ABC):
     code: str
     name: str
     aliases: tuple[str, ...] = ()
-    api_module: str = ""
 
     @abstractmethod
     def datasets(self) -> list[str]:

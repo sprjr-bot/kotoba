@@ -47,7 +47,7 @@ def test_parse_no_entries():
 
 
 def test_fetch_without_wn(monkeypatch):
-    monkeypatch.setattr("kotoba.wordnet.shutil.which", lambda cmd: None)
+    monkeypatch.setattr("kotoba.langs.english.shutil.which", lambda cmd: None)
     with pytest.raises(LookupError, match="wordnet not installed"):
         fetch("love")
 

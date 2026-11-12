@@ -43,7 +43,7 @@ def test_fetch_maps_fixture(monkeypatch):
     def fake_get(url, *, timeout):
         return httpx.Response(200, json=NEKO_FIXTURE)
 
-    monkeypatch.setattr("httpx.get", fake_get)
+    monkeypatch.setattr("kotoba.langs.japanese.httpx.get", fake_get)
     result = fetch("猫")
     assert result.query == "猫"
     assert result.source == "jisho"
@@ -63,7 +63,7 @@ def test_fetch_capped_at_twelve(monkeypatch):
     def fake_get(url, *, timeout):
         return httpx.Response(200, json=payload)
 
-    monkeypatch.setattr("httpx.get", fake_get)
+    monkeypatch.setattr("kotoba.langs.japanese.httpx.get", fake_get)
     result = fetch("many")
     assert len(result.entries) == 12
 
@@ -72,7 +72,7 @@ def test_fetch_network_error(monkeypatch):
     def fake_get(url, *, timeout):
         raise httpx.ConnectError("no route")
 
-    monkeypatch.setattr("httpx.get", fake_get)
+    monkeypatch.setattr("kotoba.langs.japanese.httpx.get", fake_get)
     with pytest.raises(LookupError, match="network error"):
         fetch("猫")
 
@@ -81,7 +81,7 @@ def test_fetch_non_200(monkeypatch):
     def fake_get(url, *, timeout):
         return httpx.Response(503, text="unavailable")
 
-    monkeypatch.setattr("httpx.get", fake_get)
+    monkeypatch.setattr("kotoba.langs.japanese.httpx.get", fake_get)
     with pytest.raises(LookupError, match="jisho returned 503"):
         fetch("猫")
 
@@ -97,7 +97,7 @@ def test_no_results(monkeypatch):
     def fake_get(url, *, timeout):
         return httpx.Response(200, json={"data": []})
 
-    monkeypatch.setattr("httpx.get", fake_get)
+    monkeypatch.setattr("kotoba.langs.japanese.httpx.get", fake_get)
     result = fetch("xyznotaword")
     assert result.entries == ()
     assert result.url

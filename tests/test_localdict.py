@@ -260,7 +260,7 @@ def test_lookup_mode_api_only_no_local(monkeypatch, fresh_data):
         source="jisho",
         entries=(Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)),),
     )
-    monkeypatch.setattr("kotoba.jisho.fetch", lambda q, limit=None: fake)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", lambda q, limit=None: fake)
     assert lookup.lookup("jisho", "猫", 5, mode="api-only").entries
 
 

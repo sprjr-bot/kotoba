@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-
-import importlib
-
 from kotoba import config, langs, localdict
 from kotoba.model import Entry, LookupResult, Sense
 
@@ -29,14 +26,7 @@ def _local_lookup(query: str, limit: int) -> LookupResult:
 
 
 def _api_lookup(source: Source, query: str, limit: int | None) -> LookupResult:
-    """Backwards-compatible API path used by tests.
-
-    The actual fetch lives in the language's legacy module (``kotoba.jisho``
-    or ``kotoba.wordnet``) so existing monkey-patches continue to work.
-    """
-    language = langs.get(source)
-    module = importlib.import_module(language.api_module)
-    return module.fetch(query, limit=limit)
+    return langs.get(source).api_search(query, limit=limit)
 
 
 def _merge_error(local_err: Exception | None, api_err: Exception | None) -> str:
