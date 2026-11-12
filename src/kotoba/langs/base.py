@@ -12,6 +12,7 @@ class Language(ABC):
     code: str
     name: str
     aliases: tuple[str, ...] = ()
+    language_code: str = ""
 
     @abstractmethod
     def datasets(self) -> list[str]:

@@ -19,6 +19,7 @@ kotoba = "kotoba.cli:main"
 
 [dependency-groups]
 test = [
+    "genanki>=0.13.1",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
 ]

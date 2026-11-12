@@ -3,9 +3,21 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import textwrap
 from pathlib import Path
 
 from kotoba.config import ConfigError, ConfigMode
+from kotoba.datasets import (
+    CACHE_SIZE_THRESHOLD,
+    clear_download_cache,
+    dataset_attribution_block,
+    descriptor,
+    download_size_notice,
+    installed_meta,
+    install_exceeds_threshold,
+    known_ids,
+    pending_download_notice,
+)
 from kotoba.export import export_list
 from kotoba.lists import (
     ListsError,
@@ -350,13 +362,38 @@ def _build_dict_parser(sub) -> argparse.ArgumentParser:
     install = sub_dict.add_parser("install", help="download and index datasets")
     install.add_argument("name", nargs="*", help=f"dataset names: {valid}")
     install.add_argument("--all", action="store_true", dest="all_datasets", help="install all default datasets")
+    install.add_argument("--lang", default=None, help="install the primary dataset for a language")
     install.add_argument("--latest", action="store_true", help="bypass pinned hash verification")
+    install.add_argument(
+        "--full-index",
+        action="store_true",
+        dest="full_index",
+        help="build full kaikki indices (slower, larger) when supported",
+    )
+    install.add_argument(
+        "--accept-new-dump",
+        action="store_true",
+        dest="accept_new_dump",
+        help="accept an archive whose hash differs from the pinned one",
+    )
+    install.add_argument(
+        "--purge-cache",
+        action="store_true",
+        dest="purge_cache",
+        help="clear the download cache after a successful install",
+    )
 
     remove = sub_dict.add_parser("remove", help="remove an installed dataset")
     remove.add_argument("name", choices=_VALID_DATASET_NAMES, help="dataset name")
 
+    cache = sub_dict.add_parser("cache", help="manage the download cache")
+    sub_cache = cache.add_subparsers(dest="cache_command", required=True)
+    sub_cache.add_parser("clear", help="delete cached downloads")
+
     sub_dict.add_parser("update", help="re-resolve and reinstall installed datasets")
     sub_dict.add_parser("reindex", help="rebuild indices from stored archives")
+    notice = sub_dict.add_parser("notice", help="print attribution notices for installed datasets")
+    notice.add_argument("--json", action="store_true", dest="as_json", help="JSON output")
 
     return p
 
@@ -446,7 +483,7 @@ def _cmd_dict_status(args) -> int:
     return EXIT_OK
 
 
-_VALID_DATASET_NAMES = ["jmdict-eng", "jmdict-eng-common", "kanjidic2-en", "kradfile", "radkfile"]
+_VALID_DATASET_NAMES = known_ids()
 
 
 def _dataset_suggestions(name: str, names: list[str], n: int = 3) -> list[str]:
@@ -458,10 +495,12 @@ def _dataset_suggestions(name: str, names: list[str], n: int = 3) -> list[str]:
 def _cmd_dict_install(args) -> int:
     if args.all_datasets:
         targets = []
+    elif args.lang:
+        targets = []
     elif args.name:
         targets = args.name
     else:
-        sys.stderr.write("kotoba dict install: specify datasets or --all\n")
+        sys.stderr.write("kotoba dict install: specify datasets or --all or --lang\n")
         return EXIT_USAGE
 
     invalid = [n for n in targets if n not in _VALID_DATASET_NAMES]
@@ -473,13 +512,57 @@ def _cmd_dict_install(args) -> int:
         sys.stderr.write(f"{msg}\n  valid datasets: {', '.join(_VALID_DATASET_NAMES)}\n")
         return EXIT_USAGE
 
+    # First-launch notice for any requested target before download begins.
+    for dataset_id in targets or ():
+        desc = descriptor(dataset_id)
+        if not installed_meta(dataset_id) and install_exceeds_threshold(desc):
+            sys.stderr.write(download_size_notice(desc) + "\n\n")
+
     try:
-        metas = install_datasets(targets, all_=args.all_datasets, latest=args.latest)
+        metas = install_datasets(
+            targets,
+            all_=args.all_datasets,
+            lang=args.lang,
+            latest=args.latest,
+            accept_new_dump=args.accept_new_dump,
+            purge_cache=args.purge_cache,
+            full_index=args.full_index,
+        )
     except Exception as exc:
         sys.stderr.write(f"kotoba: install failed: {exc}\n")
         return EXIT_UPSTREAM_ERROR
     for meta in metas:
         print(f"installed {meta['name']} {meta['version']} ({meta['size']} bytes)")
+    return EXIT_OK
+
+
+def _cmd_dict_notice(args) -> int:
+    block = dataset_attribution_block()
+    if args.as_json:
+        print(json.dumps(block, ensure_ascii=False, indent=2))
+        return EXIT_OK
+    if not block["datasets"]:
+        print("no datasets installed")
+        return EXIT_OK
+    for row in block["datasets"]:
+        print(f"{row['name']} — {row['license']}")
+        print(f"  {row['attribution']}")
+        print(f"  {row['source_url']}")
+        if row.get("notice"):
+            print()
+            print(textwrap.fill(row["notice"], width=72, initial_indent="  ", subsequent_indent="  "))
+    if block.get("shared_notice"):
+        print()
+        print(block["shared_notice"])
+    return EXIT_OK
+
+
+def _cmd_dict_cache_clear() -> int:
+    files, size = clear_download_cache()
+    if not files:
+        print("download cache empty")
+        return EXIT_OK
+    print(f"cleared {files} cached archive{'s' if files != 1 else ''} ({size} bytes)")
     return EXIT_OK
 
 
@@ -567,6 +650,12 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_dict_update()
         if args.dict_command == "reindex":
             return _cmd_dict_reindex()
+        if args.dict_command == "notice":
+            return _cmd_dict_notice(args)
+        if args.dict_command == "cache":
+            if args.cache_command == "clear":
+                return _cmd_dict_cache_clear()
+            return EXIT_USAGE
         return EXIT_USAGE
 
     if args.command == "kanji":

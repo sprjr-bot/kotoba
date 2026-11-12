@@ -41,4 +41,17 @@ def all_languages() -> list[Language]:
     return list(_REGISTRY.values())
 
 
-__all__ = ["Language", "get", "resolve", "all_languages"]
+def for_code(code: str) -> Language | None:
+    """Return the language with matching code, alias, or language_code."""
+    if code in _REGISTRY:
+        return _REGISTRY[code]
+    canonical = _ALIASES.get(code)
+    if canonical is not None:
+        return _REGISTRY.get(canonical)
+    for lang in _REGISTRY.values():
+        if getattr(lang, "language_code", "") == code:
+            return lang
+    return None
+
+
+__all__ = ["Language", "get", "resolve", "all_languages", "for_code"]

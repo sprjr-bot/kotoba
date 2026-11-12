@@ -224,6 +224,16 @@ Options to make it lighter:
 Recommended: option 1 (split package) for the biggest verified saving with the least
 work.
 
+## PR #5 Phase 2 fixes
+
+- `dict install --lang LANG` installs the language's primary descriptor; errors if none.
+- `dict install --full-index` is passed only to keyword-capable ingest functions.
+- `kaikki-es` has `retain_archive: false`; `reindex` reports "archive not retained; reinstall".
+- Kaikki license corrected to CC BY-SA 4.0 + GFDL with per-descriptor `notice` text.
+- First-launch download-size notice exposed in CLI and TUI; only fires for large, not-yet-installed datasets.
+- `NOTICE` appended with Wiktextract/Kaikki attribution.
+- Suite: 127 passed, 1 skipped, 1 xfailed.
+
 ## Unverified (needs a host with Nix)
 
 - `nix build` of the package and `nix build .#container`
