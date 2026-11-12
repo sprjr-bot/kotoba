@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 
-from kotoba import config, jisho, localdict, wordnet
+import importlib
+
+from kotoba import config, langs, localdict
 from kotoba.model import Entry, LookupResult, Sense
 
 
@@ -27,9 +29,14 @@ def _local_lookup(query: str, limit: int) -> LookupResult:
 
 
 def _api_lookup(source: Source, query: str, limit: int | None) -> LookupResult:
-    if source == "jisho":
-        return jisho.fetch(query, limit=limit or 12)
-    return wordnet.fetch(query, limit=limit)
+    """Backwards-compatible API path used by tests.
+
+    The actual fetch lives in the language's legacy module (``kotoba.jisho``
+    or ``kotoba.wordnet``) so existing monkey-patches continue to work.
+    """
+    language = langs.get(source)
+    module = importlib.import_module(language.api_module)
+    return module.fetch(query, limit=limit)
 
 
 def _merge_error(local_err: Exception | None, api_err: Exception | None) -> str:
@@ -91,7 +98,8 @@ def install_datasets(
     progress=None,
     fetcher=None,
 ) -> list[dict]:
-    targets = list(_DATASET_ORDER.keys()) if all_ else names
+    japanese = langs.get("jisho")
+    targets = list(japanese.datasets()) if all_ else names
     results: list[dict] = []
     for name in targets:
         meta = localdict.install(name, latest=latest, progress=progress, fetcher=fetcher)
@@ -111,15 +119,6 @@ def reindex(name: str | None = None) -> list[dict]:
 
 def update(fetcher=None, progress=None) -> list[dict]:
     return localdict.update(fetcher=fetcher, progress=progress)
-
-
-_DATASET_ORDER = {
-    "jmdict-eng": 1,
-    "jmdict-eng-common": 2,
-    "kanjidic2-en": 3,
-    "kradfile": 4,
-    "radkfile": 5,
-}
 
 
 def lookup_wordnet_mock_fallback(query: str) -> LookupResult:
