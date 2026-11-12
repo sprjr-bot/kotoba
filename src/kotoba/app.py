@@ -15,10 +15,9 @@ from kotoba.config import ask_at_startup, load as load_config, mode as config_mo
 from kotoba.datasets import (
     descriptor,
     download_size_notice,
+    format_size,
     installed_meta,
-    known_ids,
-    _ARCHIVE_SIZE_HINTS,
-    _CACHE_SIZE_THRESHOLD,
+    pending_download_notice,
 )
 from kotoba.export import export_list
 from kotoba.lists import add_entry, delete_list, entry_from_dict, get_list, last_list, list_names, load, remove_entry, save
@@ -32,17 +31,6 @@ Source = str
 
 def _fetch(source: Source, query: str, *, offline: bool = False) -> LookupResult:
     return resolve_lookup(source, query, None, offline=offline)
-
-
-def pending_download_notice() -> str | None:
-    """Return a first-launch notice for the first large, not-yet-installed dataset, or None."""
-    for dataset_id in known_ids():
-        if installed_meta(dataset_id):
-            continue
-        size = _ARCHIVE_SIZE_HINTS.get(dataset_id, 0)
-        if size > _CACHE_SIZE_THRESHOLD:
-            return download_size_notice(descriptor(dataset_id))
-    return None
 
 
 class QueryScreen(Screen):
@@ -619,20 +607,22 @@ class OnboardingScreen(ModalScreen):
     DEFAULT_CLASSES = "dialog"
 
     _DATASETS = [
-        ("jmdict-eng", True, "~11.5 MB", "full JMdict English (219k entries)"),
-        ("jmdict-eng-common", False, "~1.5 MB", "common-only JMdict (replaces full)"),
-        ("kanjidic2-en", True, "~1.3 MB", "KANJIDIC2 kanji data"),
-        ("kradfile", True, "~0.1 MB", "kanji component breakdown"),
-        ("radkfile", True, "~0.1 MB", "radical-to-kanji index"),
+        ("jmdict-eng", True),
+        ("jmdict-eng-common", False),
+        ("kanjidic2-en", True),
+        ("kradfile", True),
+        ("radkfile", True),
     ]
 
     def __init__(self) -> None:
         super().__init__()
-        self._selected = [checked for _, checked, _, _ in self._DATASETS]
+        self._selected = [checked for _, checked in self._DATASETS]
         self._index = 0
 
     def compose(self) -> ComposeResult:
         yield Static("Local dictionary setup", id="title")
+        notice = pending_download_notice([name for name, _ in self._DATASETS])
+        yield Static(notice, id="notice")
         yield Static("", id="rows")
         yield Static("d download · n not now", id="hint")
         yield Static("Dictionary data from EDRDG (CC BY-SA 4.0); kanji data from KANJIDIC2. See Data & licences.", id="attribution")
@@ -659,15 +649,17 @@ class OnboardingScreen(ModalScreen):
 
     def _render_rows(self) -> None:
         lines = []
-        for i, (name, checked, size, desc) in enumerate(self._DATASETS):
+        for i, (name, checked) in enumerate(self._DATASETS):
+            desc = descriptor(name)
+            size = f" ~{format_size(desc.archive_bytes_hint)}" if desc.archive_bytes_hint else ""
             marker = "[x]" if self._selected[i] else "[ ]"
             note = " (replaces full dictionary)" if name == "jmdict-eng-common" else ""
             cursor = " >" if i == self._index else "  "
-            lines.append(f"{cursor}{marker} {name} {size} — {desc}{note}")
+            lines.append(f"{cursor}{marker} {name}{size} — {desc.name}{note}")
         self.query_one("#rows", Static).update("\n".join(lines))
 
     def action_download(self) -> None:
-        chosen = [name for i, (name, _, _, _) in enumerate(self._DATASETS) if self._selected[i]]
+        chosen = [name for i, (name, _) in enumerate(self._DATASETS) if self._selected[i]]
         if not chosen:
             self.notify("no datasets selected", severity="warning")
             return

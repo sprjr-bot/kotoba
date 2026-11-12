@@ -22,7 +22,6 @@ import stat
 import tarfile
 import tempfile
 import zipfile
-import gzip
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
@@ -92,6 +91,7 @@ class DatasetDescriptor:
     asset_prefix: str | None = None
     release_api: str | None = None
     notice: str = ""
+    archive_bytes_hint: int = 0
 
     @property
     def pinned(self) -> bool:
@@ -546,19 +546,7 @@ def extract_archive(archive: Path, dest_dir: Path, descriptor: DatasetDescriptor
     if fmt == "zip":
         return _extract_zip(archive, dest_dir), True
     if fmt == "jsonl.gz":
-        # A .jsonl.gz archive is decompressed to a plain .jsonl payload.
-        # When the archive is not retained we still need a payload path, so
-        # decompress into the dataset dir.
-        payload = dest_dir / (archive.stem or "data.jsonl")
-        if payload.exists():
-            payload.unlink()
-        with gzip.open(archive, "rb") as gz, open(payload, "wb") as out:
-            while True:
-                chunk = gz.read(65536)
-                if not chunk:
-                    break
-                out.write(chunk)
-        return payload, True
+        return archive, False
     if fmt == "single-json" or shape == "gzip-jsonl-lines":
         return archive, False
     raise DictError(f"unsupported archive format: {fmt}")
@@ -647,24 +635,21 @@ def _format_size(size: int | None) -> str:
     return f"{size} bytes"
 
 
-#: Size above which a first-launch/download warning is shown.
-_CACHE_SIZE_THRESHOLD = 100 * 1024 * 1024
+format_size = _format_size
 
-#: Rough archive sizes for the first-launch notice (bytes).
-_ARCHIVE_SIZE_HINTS = {
-    "jmdict-eng": 12_100_000,
-    "jmdict-eng-common": 1_600_000,
-    "kanjidic2-en": 1_400_000,
-    "kradfile": 100_000,
-    "radkfile": 100_000,
-    "kaikki-es": 3_100_000_000,
-}
+#: Size above which a first-launch/download warning is shown.
+CACHE_SIZE_THRESHOLD = 20 * 1024 * 1024
+
+
+def install_exceeds_threshold(descriptor: DatasetDescriptor) -> bool:
+    """Return True when the descriptor's archive is large enough to warn about."""
+    return descriptor.archive_bytes_hint > CACHE_SIZE_THRESHOLD
 
 
 def download_size_notice(descriptor: DatasetDescriptor) -> str:
     """Return license + source + download-size notice for a not-yet-installed dataset."""
-    size = _ARCHIVE_SIZE_HINTS.get(descriptor.id)
-    size_note = f" (~{_format_size(size)})" if size else ""
+    size = descriptor.archive_bytes_hint
+    size_note = f" (~{format_size(size)})" if size else ""
     lines = [
         f"{descriptor.name} ({descriptor.id}) will be downloaded{size_note}.",
         f"License: {descriptor.license}",
@@ -673,6 +658,15 @@ def download_size_notice(descriptor: DatasetDescriptor) -> str:
     if descriptor.notice:
         lines.append(descriptor.notice)
     return "\n".join(lines)
+
+
+def pending_download_notice(dataset_ids: list[str] | None = None) -> str:
+    """Return a combined first-launch notice for the selected (or default) datasets."""
+    ids = dataset_ids or enabled_ids()
+    notices = [download_size_notice(descriptor(did)) for did in ids]
+    if not notices:
+        return ""
+    return "The following datasets will be downloaded:\n\n" + "\n\n".join(notices)
 
 
 # --------------------------------------------------------------------------- #
@@ -745,8 +739,6 @@ def install(
     finally:
         if temporary:
             payload.unlink(missing_ok=True)
-        if not descriptor_.retain_archive:
-            _cleanup_non_retained_payload(dataset_path, payload)
 
     version = asset.version or descriptor_.version
     meta = _meta(descriptor_, asset, dataset_path, observed, version)
@@ -772,12 +764,6 @@ def _ingest_accepts(fn: Callable, name: str) -> bool:
     except (ValueError, TypeError):
         return False
     return name in sig.parameters
-
-
-def _cleanup_non_retained_payload(dataset_path: Path, payload: Path) -> None:
-    # Remove the decompressed jsonl file left in the dataset dir for non-retained archives.
-    if payload.exists() and payload.is_relative_to(dataset_path):
-        payload.unlink()
 
 
 def remove(dataset_id: str) -> bool:

@@ -8,14 +8,15 @@ from pathlib import Path
 
 from kotoba.config import ConfigError, ConfigMode
 from kotoba.datasets import (
+    CACHE_SIZE_THRESHOLD,
     clear_download_cache,
     dataset_attribution_block,
     descriptor,
     download_size_notice,
     installed_meta,
+    install_exceeds_threshold,
     known_ids,
-    _ARCHIVE_SIZE_HINTS,
-    _CACHE_SIZE_THRESHOLD,
+    pending_download_notice,
 )
 from kotoba.export import export_list
 from kotoba.lists import (
@@ -514,7 +515,7 @@ def _cmd_dict_install(args) -> int:
     # First-launch notice for any requested target before download begins.
     for dataset_id in targets or ():
         desc = descriptor(dataset_id)
-        if not installed_meta(dataset_id) and _ARCHIVE_SIZE_HINTS.get(dataset_id, 0) > _CACHE_SIZE_THRESHOLD:
+        if not installed_meta(dataset_id) and install_exceeds_threshold(desc):
             sys.stderr.write(download_size_notice(desc) + "\n\n")
 
     try:

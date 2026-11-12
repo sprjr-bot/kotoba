@@ -20,7 +20,8 @@
       "conflicts_with": ["jmdict-eng-common"],
       "enabled_by_default": true,
       "primary": true,
-      "retain_archive": true
+      "retain_archive": true,
+      "archive_bytes_hint": 75497472
     },
     {
       "id": "jmdict-eng-common",
@@ -41,7 +42,8 @@
       "conflicts_with": ["jmdict-eng"],
       "enabled_by_default": false,
       "primary": false,
-      "retain_archive": true
+      "retain_archive": true,
+      "archive_bytes_hint": 16777216
     },
     {
       "id": "kanjidic2-en",
@@ -62,7 +64,8 @@
       "conflicts_with": [],
       "enabled_by_default": true,
       "primary": false,
-      "retain_archive": true
+      "retain_archive": true,
+      "archive_bytes_hint": 1740636
     },
     {
       "id": "kradfile",
@@ -83,7 +86,8 @@
       "conflicts_with": [],
       "enabled_by_default": true,
       "primary": false,
-      "retain_archive": true
+      "retain_archive": true,
+      "archive_bytes_hint": 954204
     },
     {
       "id": "radkfile",
@@ -104,7 +108,8 @@
       "conflicts_with": [],
       "enabled_by_default": true,
       "primary": false,
-      "retain_archive": true
+      "retain_archive": true,
+      "archive_bytes_hint": 2432696
     },
     {
       "id": "kaikki-es",
@@ -123,7 +128,8 @@
       "enabled_by_default": false,
       "primary": true,
       "retain_archive": false,
-      "notice": "This dataset is a Wiktextract extraction of Spanish-language Wiktionary content. It is licensed under CC BY-SA 4.0 and the GNU Free Documentation License. If you redistribute this data or a database derived from it, you must do so under the same licenses and point recipients to https://kaikki.org/dictionary/Spanish/ and the Wiktionary terms of use at https://wikimediafoundation.org/terms-of-use/."
+      "notice": "This dataset is a Wiktextract extraction of Spanish-language Wiktionary content. It is licensed under CC BY-SA 4.0 and the GNU Free Documentation License. If you redistribute this data or a database derived from it, you must do so under the same licenses and point recipients to https://kaikki.org/dictionary/Spanish/ and the Wiktionary terms of use at https://wikimediafoundation.org/terms-of-use/.",
+      "archive_bytes_hint": 3113851290
     }
   ]
 }

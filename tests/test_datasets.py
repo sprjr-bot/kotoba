@@ -265,3 +265,49 @@ def test_kaikki_gzip_jsonl_stream(fresh_dirs, tmp_path: Path):
         assert json.loads(rows[0][1]) == ["cat"]
     finally:
         con.close()
+
+
+def test_kaikki_jsonl_gz_install_via_file_fetcher(fresh_dirs, tmp_path: Path, monkeypatch):
+    """A jsonl.gz archive is streamed directly; no decompressed payload is left in the dataset dir."""
+    fixture = tmp_path / "raw.jsonl.gz"
+    valid = {"word": "gato", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["cat"]}]}
+    other_lang = {"word": "chat", "lang_code": "fr", "pos": "noun", "senses": [{"glosses": ["cat"]}]}
+    with gzip.open(fixture, "wb") as gz:
+        gz.write((json.dumps(valid, ensure_ascii=False) + "\n").encode("utf-8"))
+        gz.write((json.dumps(other_lang, ensure_ascii=False) + "\n").encode("utf-8"))
+
+    test_id = "kaikki-es-test"
+    test_descriptor = datasets.DatasetDescriptor(
+        id=test_id,
+        language="es",
+        name="Kaikki Spanish test fixture",
+        url=f"file://{fixture}",
+        license="CC BY-SA 4.0",
+        attribution="test",
+        archive_format="jsonl.gz",
+        extraction_shape="gzip-jsonl-lines",
+        ingest="kotoba.langs.kaikki:ingest_kaikki",
+        version="rolling",
+        retain_archive=False,
+        archive_bytes_hint=fixture.stat().st_size,
+    )
+    monkeypatch.setattr(datasets, "_REGISTRY", {test_id: test_descriptor})
+
+    meta = datasets.install(test_id)
+    dataset_dir = datasets.dataset_dir(test_id)
+    assert dataset_dir.exists()
+    assert (dataset_dir / "index.sqlite3").exists()
+    assert meta["name"] == test_id
+
+    con = sqlite3.connect(str(dataset_dir / "index.sqlite3"))
+    try:
+        rows = con.execute("SELECT headword, glosses FROM entries").fetchall()
+        assert len(rows) == 1
+        assert rows[0][0] == "gato"
+        assert json.loads(rows[0][1]) == ["cat"]
+    finally:
+        con.close()
+
+    # The fix deliberately avoids materialising a decompressed .jsonl payload.
+    assert not list(dataset_dir.glob("*.jsonl"))
+    assert not list(dataset_dir.glob("*.jsonl.gz"))  # archive is not retained either
