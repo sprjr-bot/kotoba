@@ -3,10 +3,20 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import textwrap
 from pathlib import Path
 
 from kotoba.config import ConfigError, ConfigMode
-from kotoba.datasets import clear_download_cache, dataset_attribution_block, known_ids
+from kotoba.datasets import (
+    clear_download_cache,
+    dataset_attribution_block,
+    descriptor,
+    download_size_notice,
+    installed_meta,
+    known_ids,
+    _ARCHIVE_SIZE_HINTS,
+    _CACHE_SIZE_THRESHOLD,
+)
 from kotoba.export import export_list
 from kotoba.lists import (
     ListsError,
@@ -351,8 +361,14 @@ def _build_dict_parser(sub) -> argparse.ArgumentParser:
     install = sub_dict.add_parser("install", help="download and index datasets")
     install.add_argument("name", nargs="*", help=f"dataset names: {valid}")
     install.add_argument("--all", action="store_true", dest="all_datasets", help="install all default datasets")
-    install.add_argument("--lang", default=None, help="install default datasets for a language")
+    install.add_argument("--lang", default=None, help="install the primary dataset for a language")
     install.add_argument("--latest", action="store_true", help="bypass pinned hash verification")
+    install.add_argument(
+        "--full-index",
+        action="store_true",
+        dest="full_index",
+        help="build full kaikki indices (slower, larger) when supported",
+    )
     install.add_argument(
         "--accept-new-dump",
         action="store_true",
@@ -495,6 +511,12 @@ def _cmd_dict_install(args) -> int:
         sys.stderr.write(f"{msg}\n  valid datasets: {', '.join(_VALID_DATASET_NAMES)}\n")
         return EXIT_USAGE
 
+    # First-launch notice for any requested target before download begins.
+    for dataset_id in targets or ():
+        desc = descriptor(dataset_id)
+        if not installed_meta(dataset_id) and _ARCHIVE_SIZE_HINTS.get(dataset_id, 0) > _CACHE_SIZE_THRESHOLD:
+            sys.stderr.write(download_size_notice(desc) + "\n\n")
+
     try:
         metas = install_datasets(
             targets,
@@ -503,6 +525,7 @@ def _cmd_dict_install(args) -> int:
             latest=args.latest,
             accept_new_dump=args.accept_new_dump,
             purge_cache=args.purge_cache,
+            full_index=args.full_index,
         )
     except Exception as exc:
         sys.stderr.write(f"kotoba: install failed: {exc}\n")
@@ -525,7 +548,8 @@ def _cmd_dict_notice(args) -> int:
         print(f"  {row['attribution']}")
         print(f"  {row['source_url']}")
         if row.get("notice"):
-            print(f"  {row['notice']}")
+            print()
+            print(textwrap.fill(row["notice"], width=72, initial_indent="  ", subsequent_indent="  "))
     if block.get("shared_notice"):
         print()
         print(block["shared_notice"])

@@ -12,6 +12,14 @@ from textual.widgets import Button, Input, Static
 import threading
 
 from kotoba.config import ask_at_startup, load as load_config, mode as config_mode, onboarding_done, save as save_config, set_mode
+from kotoba.datasets import (
+    descriptor,
+    download_size_notice,
+    installed_meta,
+    known_ids,
+    _ARCHIVE_SIZE_HINTS,
+    _CACHE_SIZE_THRESHOLD,
+)
 from kotoba.export import export_list
 from kotoba.lists import add_entry, delete_list, entry_from_dict, get_list, last_list, list_names, load, remove_entry, save
 from kotoba.localdict import installed as localdict_installed
@@ -24,6 +32,17 @@ Source = str
 
 def _fetch(source: Source, query: str, *, offline: bool = False) -> LookupResult:
     return resolve_lookup(source, query, None, offline=offline)
+
+
+def pending_download_notice() -> str | None:
+    """Return a first-launch notice for the first large, not-yet-installed dataset, or None."""
+    for dataset_id in known_ids():
+        if installed_meta(dataset_id):
+            continue
+        size = _ARCHIVE_SIZE_HINTS.get(dataset_id, 0)
+        if size > _CACHE_SIZE_THRESHOLD:
+            return download_size_notice(descriptor(dataset_id))
+    return None
 
 
 class QueryScreen(Screen):

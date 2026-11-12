@@ -90,9 +90,13 @@ def install_datasets(
     purge_cache: bool = False,
     progress=None,
     fetcher=None,
+    full_index: bool = False,
 ) -> list[dict]:
     if lang:
-        targets = list(datasets.enabled_ids(lang))
+        primaries = datasets.primary_ids(lang)
+        if not primaries:
+            raise datasets.DictError(f"no primary dataset for language '{lang}'")
+        targets = primaries
     else:
         targets = list(datasets.enabled_ids()) if all_ else names
     results: list[dict] = []
@@ -104,6 +108,7 @@ def install_datasets(
             purge_cache=purge_cache,
             progress=progress,
             fetcher=fetcher,
+            full_index=full_index,
         )
         results.append(meta)
     return results

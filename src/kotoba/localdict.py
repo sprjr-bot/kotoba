@@ -238,6 +238,7 @@ def install(
     refresh: bool = False,
     fetcher: Callable[[str], dict] | None = None,
     progress: FetchProgress | None = None,
+    full_index: bool = False,
 ) -> dict:
     return datasets.install(
         dataset,
@@ -247,6 +248,7 @@ def install(
         refresh=refresh,
         fetcher=fetcher,
         progress=progress,
+        full_index=full_index,
     )
 
 

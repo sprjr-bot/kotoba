@@ -18,7 +18,9 @@
       "version": "3.6.2",
       "dump_date": "",
       "conflicts_with": ["jmdict-eng-common"],
-      "enabled_by_default": true
+      "enabled_by_default": true,
+      "primary": true,
+      "retain_archive": true
     },
     {
       "id": "jmdict-eng-common",
@@ -37,7 +39,9 @@
       "version": "3.6.2",
       "dump_date": "",
       "conflicts_with": ["jmdict-eng"],
-      "enabled_by_default": false
+      "enabled_by_default": false,
+      "primary": false,
+      "retain_archive": true
     },
     {
       "id": "kanjidic2-en",
@@ -56,7 +60,9 @@
       "version": "3.6.2",
       "dump_date": "",
       "conflicts_with": [],
-      "enabled_by_default": true
+      "enabled_by_default": true,
+      "primary": false,
+      "retain_archive": true
     },
     {
       "id": "kradfile",
@@ -75,7 +81,9 @@
       "version": "3.6.2",
       "dump_date": "",
       "conflicts_with": [],
-      "enabled_by_default": true
+      "enabled_by_default": true,
+      "primary": false,
+      "retain_archive": true
     },
     {
       "id": "radkfile",
@@ -94,7 +102,9 @@
       "version": "3.6.2",
       "dump_date": "",
       "conflicts_with": [],
-      "enabled_by_default": true
+      "enabled_by_default": true,
+      "primary": false,
+      "retain_archive": true
     },
     {
       "id": "kaikki-es",
@@ -102,15 +112,18 @@
       "name": "Kaikki Spanish",
       "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
       "homepage": "https://kaikki.org/dictionary/Spanish/",
-      "license": "CC BY-SA 3.0",
-      "attribution": "Wiktionary data via Kaikki (CC BY-SA 3.0)",
+      "license": "CC BY-SA 4.0 and GFDL",
+      "attribution": "Wiktextract output from Kaikki, derived from Spanish Wiktionary",
       "archive_format": "jsonl.gz",
       "extraction_shape": "gzip-jsonl-lines",
       "ingest": "kotoba.langs.kaikki:ingest_kaikki",
       "version": "rolling",
       "dump_date": "",
       "conflicts_with": [],
-      "enabled_by_default": false
+      "enabled_by_default": false,
+      "primary": true,
+      "retain_archive": false,
+      "notice": "This dataset is a Wiktextract extraction of Spanish-language Wiktionary content. It is licensed under CC BY-SA 4.0 and the GNU Free Documentation License. If you redistribute this data or a database derived from it, you must do so under the same licenses and point recipients to https://kaikki.org/dictionary/Spanish/ and the Wiktionary terms of use at https://wikimediafoundation.org/terms-of-use/."
     }
   ]
 }

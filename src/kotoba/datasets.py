@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import inspect
 import json
 import os
 import shutil
@@ -85,9 +86,12 @@ class DatasetDescriptor:
     dump_date: str = ""
     conflicts_with: list[str] = field(default_factory=list)
     enabled_by_default: bool = True
+    primary: bool = False
+    retain_archive: bool = True
     homepage: str = ""
     asset_prefix: str | None = None
     release_api: str | None = None
+    notice: str = ""
 
     @property
     def pinned(self) -> bool:
@@ -183,7 +187,7 @@ def registry() -> dict[str, DatasetDescriptor]:
     global _REGISTRY
     if _REGISTRY is None:
         _REGISTRY = load_registry(DESCRIPTOR_PATH)
-    return _REGISTRY
+    return _REGISTRY.copy()
 
 
 def reset_registry() -> None:
@@ -212,6 +216,15 @@ def enabled_ids(language: str | None = None) -> list[str]:
         item.id
         for item in registry().values()
         if item.enabled_by_default and (language is None or item.language == language)
+    ]
+
+
+def primary_ids(language: str | None = None) -> list[str]:
+    """Return primary ids for a language, or every primary id."""
+    return [
+        item.id
+        for item in registry().values()
+        if item.primary and (language is None or item.language == language)
     ]
 
 
@@ -463,12 +476,7 @@ def _fetch_verified(
     refresh: bool,
     progress: FetchProgress | None,
 ) -> tuple[Path, str]:
-    """Return a cached archive and its observed hash, enforcing the pin.
-
-    A cached archive that fails the pin is discarded and fetched once more, so
-    a truncated/partial cache entry cannot wedge the install.  A real upstream
-    change still aborts, leaving installed data untouched.
-    """
+    # Keep cached archive on mismatch once, so a truncated cache cannot wedge the install.
     descriptor_id = descriptor.id
     expected = descriptor.sha256
     cached = download_dir() / asset.asset_name
@@ -539,6 +547,8 @@ def extract_archive(archive: Path, dest_dir: Path, descriptor: DatasetDescriptor
         return _extract_zip(archive, dest_dir), True
     if fmt == "jsonl.gz":
         # A .jsonl.gz archive is decompressed to a plain .jsonl payload.
+        # When the archive is not retained we still need a payload path, so
+        # decompress into the dataset dir.
         payload = dest_dir / (archive.stem or "data.jsonl")
         if payload.exists():
             payload.unlink()
@@ -615,16 +625,54 @@ def dataset_attribution_block() -> dict:
     for row in rows:
         if row.get("legacy"):
             continue
+        desc = registry().get(row["name"])
         datasets.append(
             {
                 "name": row["name"],
                 "license": row.get("license", ""),
                 "attribution": row.get("attribution", ""),
                 "source_url": row.get("source_url", ""),
-                "notice": "",
+                "notice": desc.notice if desc else "",
             }
         )
     return {"datasets": datasets, "shared_notice": ""}
+
+
+def _format_size(size: int | None) -> str:
+    if size is None:
+        return ""
+    for unit, denom in (("GB", 1024**3), ("MB", 1024**2), ("KB", 1024)):
+        if size >= denom:
+            return f"{size / denom:.2f} {unit}"
+    return f"{size} bytes"
+
+
+#: Size above which a first-launch/download warning is shown.
+_CACHE_SIZE_THRESHOLD = 100 * 1024 * 1024
+
+#: Rough archive sizes for the first-launch notice (bytes).
+_ARCHIVE_SIZE_HINTS = {
+    "jmdict-eng": 12_100_000,
+    "jmdict-eng-common": 1_600_000,
+    "kanjidic2-en": 1_400_000,
+    "kradfile": 100_000,
+    "radkfile": 100_000,
+    "kaikki-es": 3_100_000_000,
+}
+
+
+def download_size_notice(descriptor: DatasetDescriptor) -> str:
+    """Return license + source + download-size notice for a not-yet-installed dataset."""
+    size = _ARCHIVE_SIZE_HINTS.get(descriptor.id)
+    size_note = f" (~{_format_size(size)})" if size else ""
+    lines = [
+        f"{descriptor.name} ({descriptor.id}) will be downloaded{size_note}.",
+        f"License: {descriptor.license}",
+        f"Source: {descriptor.homepage or descriptor.url}",
+    ]
+    if descriptor.notice:
+        lines.append(descriptor.notice)
+    return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------- #
@@ -632,7 +680,8 @@ def dataset_attribution_block() -> dict:
 
 
 def _meta(descriptor: DatasetDescriptor, asset: ResolvedAsset, dataset_path: Path, observed: str, version: str) -> dict:
-    archive_bytes = (dataset_path / asset.asset_name).stat().st_size
+    archive_path = dataset_path / asset.asset_name
+    archive_bytes = archive_path.stat().st_size if archive_path.exists() else 0
     index_bytes = index_size(dataset_path)
     return {
         "name": descriptor.id,
@@ -661,6 +710,7 @@ def install(
     refresh: bool = False,
     fetcher: Callable[[str], dict] | None = None,
     progress: FetchProgress | None = None,
+    full_index: bool = False,
 ) -> dict:
     """Install one dataset: resolve, download, verify, extract, ingest."""
     descriptor_ = descriptor(dataset_id)
@@ -672,8 +722,7 @@ def install(
         descriptor_, asset, accept=accept, refresh=refresh, progress=progress
     )
 
-    # Conflict removal happens only after the archive is proven good, so a
-    # failed verification never destroys the dataset the user already has.
+    # Conflict removal happens only after the archive is proven good.
     for other in descriptor_.conflicts_with:
         if dataset_dir(other).exists():
             remove(other)
@@ -681,14 +730,23 @@ def install(
     dataset_path = dataset_dir(dataset_id)
     _ensure_dir(dataset_path)
     archive_path = dataset_path / asset.asset_name
-    _link_or_copy(cached, archive_path)
+    if descriptor_.retain_archive:
+        _link_or_copy(cached, archive_path)
+    elif archive_path.exists():
+        archive_path.unlink()
 
-    payload, temporary = extract_archive(archive_path, dataset_path, descriptor_)
+    payload, temporary = extract_archive(cached if not descriptor_.retain_archive else archive_path, dataset_path, descriptor_)
     try:
-        ingest_callable(descriptor_.ingest)(payload, dataset_path, descriptor_)
+        ingest_fn = ingest_callable(descriptor_.ingest)
+        if _ingest_accepts(ingest_fn, "full_index"):
+            ingest_fn(payload, dataset_path, descriptor_, full_index=full_index)
+        else:
+            ingest_fn(payload, dataset_path, descriptor_)
     finally:
         if temporary:
             payload.unlink(missing_ok=True)
+        if not descriptor_.retain_archive:
+            _cleanup_non_retained_payload(dataset_path, payload)
 
     version = asset.version or descriptor_.version
     meta = _meta(descriptor_, asset, dataset_path, observed, version)
@@ -708,6 +766,20 @@ def install(
     return meta
 
 
+def _ingest_accepts(fn: Callable, name: str) -> bool:
+    try:
+        sig = inspect.signature(fn)
+    except (ValueError, TypeError):
+        return False
+    return name in sig.parameters
+
+
+def _cleanup_non_retained_payload(dataset_path: Path, payload: Path) -> None:
+    # Remove the decompressed jsonl file left in the dataset dir for non-retained archives.
+    if payload.exists() and payload.is_relative_to(dataset_path):
+        payload.unlink()
+
+
 def remove(dataset_id: str) -> bool:
     """Delete an installed dataset directory; return False when absent."""
     dataset_path = dataset_dir(dataset_id)
@@ -720,6 +792,8 @@ def remove(dataset_id: str) -> bool:
 def reindex(dataset_id: str) -> dict:
     """Rebuild one dataset index from the archive stored with the install."""
     descriptor_ = descriptor(dataset_id)
+    if not descriptor_.retain_archive:
+        raise DictError(f"archive not retained for {dataset_id}; reinstall to rebuild the index")
     dataset_path = dataset_dir(dataset_id)
     meta = installed_meta(dataset_id)
     if meta is None:
