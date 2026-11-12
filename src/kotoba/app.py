@@ -3,7 +3,6 @@ from __future__ import annotations
 import shutil
 import subprocess
 import time
-from typing import Literal
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -20,7 +19,7 @@ from kotoba.lookup import install_datasets, kanji as lookup_kanji, local_status,
 from kotoba.model import Entry, LookupResult
 from kotoba.render import render_error, render_text
 
-Source = Literal["jisho", "wordnet"]
+Source = str
 
 
 def _fetch(source: Source, query: str, *, offline: bool = False) -> LookupResult:

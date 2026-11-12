@@ -11,7 +11,7 @@ def test_cli_print_jisho_no_results(monkeypatch):
         from kotoba.model import LookupResult
         return LookupResult(query=query, source="jisho", entries=())
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["jp", "--print", "xyz"]) == EXIT_NO_RESULTS
 
 
@@ -26,7 +26,7 @@ def test_cli_print_jisho_result(capsys, monkeypatch):
             url="https://jisho.org/search/%E7%8C%AB",
         )
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["jp", "--print", "猫"]) == EXIT_OK
     captured = capsys.readouterr()
     assert "猫" in captured.out
@@ -37,7 +37,7 @@ def test_cli_print_upstream_error(capsys, monkeypatch):
     def fetch(query, **kwargs):
         raise RuntimeError("network down")
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["jp", "--print", "猫"]) == EXIT_UPSTREAM_ERROR
     assert "network down" in capsys.readouterr().err
 
@@ -52,7 +52,7 @@ def test_cli_print_in_pipe(capsys, monkeypatch):
             entries=(Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)),),
         )
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     with mock.patch("sys.stdout.isatty", return_value=False):
         assert main(["jp", "猫"]) == EXIT_OK
     assert "cat" in capsys.readouterr().out
@@ -67,7 +67,7 @@ def test_cli_selection_feeds_query(capsys, monkeypatch):
         captured["query"] = query
         return LookupResult(query=query, source="jisho", entries=())
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     monkeypatch.setattr("kotoba.selection.initial_query", lambda arg=None, *, use_selection=False: "猫")
     assert main(["jp", "--selection", "--print"]) == EXIT_NO_RESULTS
     assert captured["query"] == "猫"
@@ -82,7 +82,7 @@ def test_bare_query_autodetects_japanese(monkeypatch):
         seen["query"] = query
         return LookupResult(query=query, source="jisho", entries=())
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["猫", "--print"]) == EXIT_NO_RESULTS
     assert seen["query"] == "猫"
 
@@ -96,7 +96,7 @@ def test_bare_query_autodetects_english(monkeypatch):
         seen["query"] = query
         return LookupResult(query=query, source="wordnet", entries=())
 
-    monkeypatch.setattr("kotoba.wordnet.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.english.fetch", fetch)
     assert main(["love", "--print"]) == EXIT_NO_RESULTS
     assert seen["query"] == "love"
 
@@ -112,7 +112,7 @@ def test_json_output(capsys, monkeypatch):
             url="https://jisho.org/search/%E7%8C%AB",
         )
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["jp", "--json", "猫"]) == EXIT_OK
     import json
 
@@ -130,7 +130,7 @@ def test_limit_reaches_upstream(monkeypatch):
         seen.update(kwargs)
         return LookupResult(query=query, source="jisho", entries=())
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["jp", "--print", "--limit", "3", "猫"]) == EXIT_NO_RESULTS
     assert seen["limit"] == 3
 
@@ -201,7 +201,7 @@ def test_list_add_saves_entry(monkeypatch, tmp_path):
             url="https://jisho.org/search/%E7%8C%AB",
         )
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["list", "add", "猫", "--source", "jp"]) == EXIT_OK
     data = (tmp_path / "kotoba" / "lists.json").read_text(encoding="utf-8")
     assert "猫" in data
@@ -219,7 +219,7 @@ def test_list_add_already_present(monkeypatch, tmp_path):
             entries=(Entry(headword="猫", reading="ねこ", senses=(Sense(pos=("Noun",), glosses=("cat",)),)),),
         )
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     main(["list", "add", "猫", "--source", "jp"])
     assert main(["list", "add", "猫", "--source", "jp"]) == EXIT_NO_RESULTS
 
@@ -228,13 +228,13 @@ def test_list_add_not_found(monkeypatch, tmp_path):
     from kotoba.model import LookupResult
 
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-    monkeypatch.setattr("kotoba.jisho.fetch", lambda q, **kw: LookupResult(query=q, source="jisho", entries=()))
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", lambda q, **kw: LookupResult(query=q, source="jisho", entries=()))
     assert main(["list", "add", "xyz", "--source", "jp"]) == EXIT_NO_RESULTS
 
 
 def test_list_add_upstream_error(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-    monkeypatch.setattr("kotoba.jisho.fetch", lambda q, **kw: (_ for _ in ()).throw(RuntimeError("down")))
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", lambda q, **kw: (_ for _ in ()).throw(RuntimeError("down")))
     assert main(["list", "add", "猫", "--source", "jp"]) == EXIT_UPSTREAM_ERROR
 
 
@@ -409,7 +409,7 @@ def test_offline_flag_accepted_after_subcommand(monkeypatch, tmp_path, capsys):
         calls.append(query)
         return LookupResult(query=query, source="jisho", entries=())
 
-    monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     assert main(["猫", "--print", "--offline"]) == EXIT_NO_RESULTS
     assert calls == ["猫"]
 
@@ -418,7 +418,7 @@ def test_offline_missing_data_reports_once(monkeypatch, tmp_path, capsys):
     from kotoba.model import LookupResult
 
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-    monkeypatch.setattr("kotoba.jisho.fetch", lambda query, **kw: LookupResult(query=query, source="jisho", entries=()))
+    monkeypatch.setattr("kotoba.langs.japanese.fetch", lambda query, **kw: LookupResult(query=query, source="jisho", entries=()))
     assert main(["猫", "--print", "--offline"]) == EXIT_NO_RESULTS
     err = capsys.readouterr().err
     assert err.count("local dictionary not installed") == 1

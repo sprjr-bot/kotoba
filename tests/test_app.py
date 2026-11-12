@@ -12,9 +12,9 @@ def _fake_fetch(monkeypatch, source, entries):
         return LookupResult(query=query, source=source, entries=entries)
 
     if source == "jisho":
-        monkeypatch.setattr("kotoba.jisho.fetch", fetch)
+        monkeypatch.setattr("kotoba.langs.japanese.fetch", fetch)
     else:
-        monkeypatch.setattr("kotoba.wordnet.fetch", fetch)
+        monkeypatch.setattr("kotoba.langs.english.fetch", fetch)
 
 
 @pytest.mark.asyncio

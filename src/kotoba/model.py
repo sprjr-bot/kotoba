@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -23,6 +22,6 @@ class Entry:
 @dataclass(frozen=True)
 class LookupResult:
     query: str
-    source: Literal["jisho", "wordnet", "jmdict"]
+    source: str
     entries: tuple[Entry, ...]
     url: str | None = None
