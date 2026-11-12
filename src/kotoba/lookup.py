@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from kotoba import config, langs, localdict
+from kotoba import config, datasets, langs, localdict
 from kotoba.model import Entry, LookupResult, Sense
 
 
@@ -84,15 +84,27 @@ def install_datasets(
     names: list[str],
     *,
     all_: bool = False,
+    lang: str | None = None,
     latest: bool = False,
+    accept_new_dump: bool = False,
+    purge_cache: bool = False,
     progress=None,
     fetcher=None,
 ) -> list[dict]:
-    japanese = langs.get("jisho")
-    targets = list(japanese.datasets()) if all_ else names
+    if lang:
+        targets = list(datasets.enabled_ids(lang))
+    else:
+        targets = list(datasets.enabled_ids()) if all_ else names
     results: list[dict] = []
     for name in targets:
-        meta = localdict.install(name, latest=latest, progress=progress, fetcher=fetcher)
+        meta = localdict.install(
+            name,
+            latest=latest,
+            accept_new_dump=accept_new_dump,
+            purge_cache=purge_cache,
+            progress=progress,
+            fetcher=fetcher,
+        )
         results.append(meta)
     return results
 
@@ -104,7 +116,7 @@ def remove_dataset(name: str) -> bool:
 def reindex(name: str | None = None) -> list[dict]:
     if name:
         return [localdict.reindex(name)]
-    return [localdict.reindex(n) for n in localdict.installed().keys()]
+    return localdict.reindex_all()
 
 
 def update(fetcher=None, progress=None) -> list[dict]:

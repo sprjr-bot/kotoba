@@ -97,6 +97,7 @@ class English(Language):
     code = "wordnet"
     name = "English"
     aliases = ("en", "wordnet")
+    language_code = "en"
 
     def datasets(self) -> list[str]:
         return []

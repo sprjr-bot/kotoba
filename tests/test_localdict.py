@@ -6,7 +6,7 @@ from typing import Callable
 
 import pytest
 
-from kotoba import config, localdict, lookup
+from kotoba import config, datasets, localdict, lookup
 
 JMDICT_WORDS = {
     "words": [
@@ -126,7 +126,9 @@ def assets(tmp_path: Path) -> dict[str, Path]:
 @pytest.fixture
 def pinned(assets, monkeypatch) -> dict[str, str]:
     hashes = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in assets.items()}
-    monkeypatch.setattr(localdict, "_PINNED", hashes)
+    registry = datasets.registry()
+    for name, digest in hashes.items():
+        monkeypatch.setattr(registry[name], "sha256", digest)
     return hashes
 
 
@@ -134,6 +136,7 @@ def pinned(assets, monkeypatch) -> dict[str, str]:
 def fresh_data(tmp_path: Path, monkeypatch) -> Path:
     data_root = tmp_path / "data"
     monkeypatch.setenv("XDG_DATA_HOME", str(data_root))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     config_root = tmp_path / "config"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(config_root))
     return data_root
@@ -178,7 +181,7 @@ def test_hash_mismatch_aborts(fresh_data, assets, pinned):
 
 
 def test_latest_bypasses_pin(fresh_data, assets, pinned, monkeypatch):
-    monkeypatch.setitem(localdict._PINNED, "jmdict-eng", "0" * 64)
+    monkeypatch.setattr(datasets.registry()["jmdict-eng"], "sha256", "0" * 64)
     meta = localdict.install("jmdict-eng", fetcher=_fetcher(assets), latest=True)
     assert meta["sha256"] != "0" * 64
 

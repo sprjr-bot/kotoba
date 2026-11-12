@@ -4,23 +4,13 @@ from urllib.parse import quote
 
 import httpx
 
-from kotoba import localdict
+from kotoba import datasets, localdict
 from kotoba.langs.base import Language
 from kotoba.model import Entry, LookupResult, Sense
 
 
 class LookupError(Exception):
     pass
-
-
-# Preferred installation order for Japanese datasets.
-_DATASET_ORDER = {
-    "jmdict-eng": 1,
-    "jmdict-eng-common": 2,
-    "kanjidic2-en": 3,
-    "kradfile": 4,
-    "radkfile": 5,
-}
 
 
 def _map_entry(item: dict) -> Entry:
@@ -83,9 +73,10 @@ class Japanese(Language):
     code = "jisho"
     name = "Japanese"
     aliases = ("jp", "jisho", "jmdict")
+    language_code = "ja"
 
     def datasets(self) -> list[str]:
-        return [name for name, _ in sorted(_DATASET_ORDER.items(), key=lambda kv: kv[1])]
+        return datasets.enabled_ids(self.language_code)
 
     def search(self, query: str, *, limit: int | None = None, offline: bool = False) -> LookupResult:
         if offline:
